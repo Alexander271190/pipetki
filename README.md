@@ -58,3 +58,15 @@ pipette-app/
 ├── style.css # Стили
 └── script.js # Клиентская логика (API-запросы)
 
+
+
+Тестовый запуск дома
+1. Установить Node.js LTS с https://nodejs.org/
+2. Перезагрузить ПК
+3. Открыть C:\pipette-app
+4. В адресной строке → cmd → Enter
+5. npm install
+6. npm start
+7. Открыть http://localhost:3000
+8. Войти: admin / admin
+
