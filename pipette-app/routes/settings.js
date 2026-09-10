@@ -4,7 +4,9 @@ const { authenticate, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Отделы
+// ============================================================
+// ОТДЕЛЫ
+// ============================================================
 router.get('/departments', authenticate, async (req, res) => {
   const [rows] = await db.query('SELECT name FROM departments ORDER BY name');
   res.json(rows.map(r => r.name));
@@ -12,24 +14,95 @@ router.get('/departments', authenticate, async (req, res) => {
 
 router.put('/departments', authenticate, requireRole(['admin']), async (req, res) => {
   const departments = req.body;
+  if (!Array.isArray(departments)) return res.status(400).json({ error: 'Ожидается массив' });
   const conn = await db.getConnection();
   try {
     await conn.beginTransaction();
     await conn.query('DELETE FROM departments');
     for (const name of departments) {
-      await conn.query('INSERT INTO departments (name) VALUES (?)', [name]);
+      if (name && name.trim()) {
+        await conn.query('INSERT INTO departments (name) VALUES (?)', [name.trim()]);
+      }
     }
     await conn.commit();
     res.json({ message: 'Отделы обновлены' });
   } catch (e) {
     await conn.rollback();
+    console.error(e);
     res.status(500).json({ error: 'Ошибка обновления отделов' });
   } finally {
     conn.release();
   }
 });
 
-// Системные настройки
+// ============================================================
+// ПОЛЯ ФОРМЫ
+// ============================================================
+router.get('/fields', authenticate, async (req, res) => {
+  const [rows] = await db.query('SELECT * FROM field_config ORDER BY field_order');
+  res.json(rows.map(f => ({
+    id: f.id,
+    label: f.label,
+    type: f.type,
+    required: !!f.required,
+    enabled: !!f.enabled,
+    options: JSON.parse(f.options || '[]'),
+    default: f.default_value || '',
+    order: f.field_order
+  })));
+});
+
+router.put('/fields', authenticate, requireRole(['admin']), async (req, res) => {
+  const fields = req.body;
+  if (!Array.isArray(fields)) return res.status(400).json({ error: 'Ожидается массив' });
+
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+    // Полная синхронизация: удаляем все поля и вставляем заново
+    await conn.query('DELETE FROM field_config');
+    for (const f of fields) {
+      await conn.query(
+        `INSERT INTO field_config (id, label, type, required, enabled, options, default_value, field_order)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [f.id, f.label, f.type, f.required ? 1 : 0, f.enabled !== false ? 1 : 0,
+         JSON.stringify(f.options || []), f.default || '', f.order || 0]
+      );
+    }
+    await conn.commit();
+    res.json({ message: 'Поля обновлены' });
+  } catch (e) {
+    await conn.rollback();
+    console.error(e);
+    res.status(500).json({ error: 'Ошибка обновления полей' });
+  } finally {
+    conn.release();
+  }
+});
+
+// ============================================================
+// НАСТРОЙКИ ЭКСПОРТА
+// ============================================================
+router.get('/export', authenticate, async (req, res) => {
+  const [rows] = await db.query('SELECT fields FROM export_settings WHERE id = 1');
+  if (!rows.length) return res.json([]);
+  res.json(JSON.parse(rows[0].fields));
+});
+
+router.put('/export', authenticate, requireRole(['admin']), async (req, res) => {
+  const fields = req.body;
+  if (!Array.isArray(fields)) return res.status(400).json({ error: 'Ожидается массив' });
+  await db.query(
+    `INSERT INTO export_settings (id, fields) VALUES (1, ?)
+     ON CONFLICT(id) DO UPDATE SET fields = excluded.fields`,
+    [JSON.stringify(fields)]
+  );
+  res.json({ message: 'Настройки экспорта обновлены' });
+});
+
+// ============================================================
+// СИСТЕМНЫЕ НАСТРОЙКИ
+// ============================================================
 router.get('/system', authenticate, async (req, res) => {
   const [rows] = await db.query('SELECT setting_key, setting_value FROM system_settings');
   const result = {};
