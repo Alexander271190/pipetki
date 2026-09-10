@@ -883,6 +883,313 @@ if (session) {
   renderAuthUI();
   loadPipetteData();
 }
+// ============================================================
+// ИМПОРТ ДАННЫХ
+// ============================================================
+function openImportModal() {
+  if (!canManagePipettes()) { showToast('Доступ запрещён', 'error'); return; }
+  document.getElementById('import-modal').classList.add('active');
+}
+function closeImportModal() {
+  document.getElementById('import-modal').classList.remove('active');
+  document.getElementById('import-file').value = '';
+}
+
+async function handleImport() {
+  const format = document.getElementById('import-format').value;
+  const fileInput = document.getElementById('import-file');
+  const file = fileInput.files[0];
+  if (!file) { showToast('Выберите файл', 'error'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      let imported = [];
+      if (format === 'json') {
+        imported = JSON.parse(e.target.result);
+        if (!Array.isArray(imported)) throw new Error('JSON должен быть массивом');
+      } else {
+        const text = e.target.result;
+        const lines = text.split(/\r?\n/).filter(l => l.trim());
+        if (lines.length < 2) throw new Error('Пустой файл');
+        const sep = lines[0].includes(';') ? ';' : ',';
+        const headers = lines[0].split(sep).map(h => h.trim().replace(/^"|"$/g, ''));
+        imported = lines.slice(1).map(line => {
+          const vals = line.split(sep).map(v => v.trim().replace(/^"|"$/g, ''));
+          const obj = {};
+          headers.forEach((h, i) => obj[h] = vals[i] || '');
+          return obj;
+        });
+      }
+
+      let added = 0;
+      for (const item of imported) {
+        const id = item.id || item.ID || '';
+        const model = item.model || item['Модель'] || '';
+        if (!id || !model) continue;
+        try {
+          await apiRequest('/pipettes', 'POST', {
+            id: String(id).trim(),
+            model: String(model).trim(),
+            serial: item.serial || item['Серийный'] || '',
+            manufacturer: item.manufacturer || item['Производитель'] || '',
+            volume: String(item.volume || item['Объём'] || '').replace(' мкл', ''),
+            department: item.department || item['Отдел'] || '',
+            interval: parseInt(item.interval || item['МПИ'] || 12) || 12,
+            lastCalibration: item.lastCalibration || item.last_calibration || item['Дата поверки'] || '',
+            cert: item.cert || item['Свидетельство'] || '',
+            result: item.result || item.lastResult || 'pass',
+            active: item.active !== false && item.active !== 0 && item.active !== 'false',
+            responsible: item.responsible || item['Ответственный'] || '',
+            location: item.location || item['Место'] || '',
+            notes: item.notes || item['Примечание'] || ''
+          });
+          added++;
+        } catch (err) {
+          console.warn('Пропущено:', id, err.message);
+        }
+      }
+      await loadPipetteData();
+      closeImportModal();
+      showToast(`Импортировано записей: ${added}`, 'success');
+    } catch (err) {
+      showToast('Ошибка импорта: ' + err.message, 'error');
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ============================================================
+// НАСТРОЙКИ
+// ============================================================
+function openSettingsModal() {
+  if (!isAdmin()) { showToast('Только для администратора', 'error'); return; }
+  document.getElementById('settings-modal').classList.add('active');
+  switchSettingsTab('users');
+}
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.remove('active');
+}
+
+async function switchSettingsTab(tab) {
+  document.querySelectorAll('.settings-tabs .tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  const container = document.getElementById('settings-content');
+  container.innerHTML = '<p style="text-align:center;color:#94a3b8;">Загрузка…</p>';
+
+  if (tab === 'users') await renderUsersTab();
+  else if (tab === 'departments') await renderDepartmentsTab();
+  else if (tab === 'system') await renderSystemTab();
+  else if (tab === 'log') await renderLogTab();
+}
+
+// ----- Пользователи -----
+async function renderUsersTab() {
+  const container = document.getElementById('settings-content');
+  try {
+    const users = await apiRequest('/users');
+    let html = `
+      <h3 style="margin-bottom:12px;">Пользователи системы</h3>
+      <table class="users-table">
+        <thead><tr>
+          <th>Логин</th><th>ФИО</th><th>Должность</th><th>Отдел</th><th>Роль</th><th>Действия</th>
+        </tr></thead><tbody>`;
+    const roleLabels = { user: 'Пользователь', senior_lab: 'Ст. лаборант', admin: 'Администратор' };
+    for (const u of users) {
+      html += `<tr>
+        <td>${esc(u.login)}</td>
+        <td>${esc(u.full_name)}</td>
+        <td>${esc(u.position)}</td>
+        <td>${esc(u.department || '—')}</td>
+        <td>${roleLabels[u.role] || u.role}</td>
+        <td class="actions">
+          <button class="btn btn-danger btn-sm" onclick="deleteUserSettings('${u.id}')">🗑️</button>
+        </td>
+      </tr>`;
+    }
+    html += `</tbody></table>
+      <hr style="margin:20px 0;">
+      <h4 style="margin-bottom:12px;">Добавить пользователя</h4>
+      <div class="form-row">
+        <div class="form-group"><label>Логин *</label><input id="new-user-login" placeholder="login"></div>
+        <div class="form-group"><label>Пароль *</label><input id="new-user-password" placeholder="пароль"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>ФИО *</label><input id="new-user-fullname" placeholder="Иванов Иван Иванович"></div>
+        <div class="form-group"><label>Должность *</label><input id="new-user-position" placeholder="Лаборант"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Отдел</label><input id="new-user-department" placeholder="Отдел"></div>
+        <div class="form-group"><label>Роль</label>
+          <select id="new-user-role">
+            <option value="user">Пользователь</option>
+            <option value="senior_lab">Старший лаборант</option>
+            <option value="admin">Администратор</option>
+          </select>
+        </div>
+      </div>
+      <button class="btn btn-success" onclick="createUserFromSettings()">➕ Создать пользователя</button>
+    `;
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + err.message + '</p>';
+  }
+}
+
+async function createUserFromSettings() {
+  const login = document.getElementById('new-user-login').value.trim();
+  const password = document.getElementById('new-user-password').value.trim();
+  const fullName = document.getElementById('new-user-fullname').value.trim();
+  const position = document.getElementById('new-user-position').value.trim();
+  const department = document.getElementById('new-user-department').value.trim();
+  const role = document.getElementById('new-user-role').value;
+  if (!login || !password || !fullName || !position) {
+    showToast('Заполните обязательные поля', 'error'); return;
+  }
+  try {
+    await apiRequest('/users', 'POST', { login, password, fullName, position, department, role, extraPermissions: [] });
+    showToast('Пользователь создан', 'success');
+    renderUsersTab();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function deleteUserSettings(id) {
+  if (!confirm('Удалить пользователя?')) return;
+  try {
+    await apiRequest('/users/' + id, 'DELETE');
+    showToast('Пользователь удалён', 'success');
+    renderUsersTab();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+// ----- Отделы -----
+async function renderDepartmentsTab() {
+  const container = document.getElementById('settings-content');
+  try {
+    const depts = await apiRequest('/settings/departments');
+    let html = `<h3 style="margin-bottom:12px;">Список отделов</h3>`;
+    depts.forEach((d, i) => {
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #e2e8f0;">
+        <span>${esc(d)}</span>
+        <button class="btn btn-danger btn-sm" onclick="deleteDept(${i})">🗑️</button>
+      </div>`;
+    });
+    html += `
+      <hr style="margin:20px 0;">
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label>Новый отдел</label>
+          <input id="new-dept-name" placeholder="Название отдела">
+        </div>
+        <div class="form-group" style="flex:0;display:flex;align-items:flex-end;">
+          <button class="btn btn-success" onclick="addDept()">➕ Добавить</button>
+        </div>
+      </div>
+    `;
+    container.innerHTML = html;
+    // Сохраняем список в window для последующих операций
+    window._depts = depts;
+  } catch (err) {
+    container.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + err.message + '</p>';
+  }
+}
+
+async function addDept() {
+  const name = document.getElementById('new-dept-name').value.trim();
+  if (!name) { showToast('Введите название', 'error'); return; }
+  const depts = [...window._depts, name];
+  await apiRequest('/settings/departments', 'PUT', depts);
+  showToast('Отдел добавлен', 'success');
+  renderDepartmentsTab();
+  loadDepartments();
+}
+
+async function deleteDept(idx) {
+  if (!confirm('Удалить отдел?')) return;
+  const depts = window._depts.filter((_, i) => i !== idx);
+  await apiRequest('/settings/departments', 'PUT', depts);
+  showToast('Отдел удалён', 'success');
+  renderDepartmentsTab();
+  loadDepartments();
+}
+
+// ----- Системные настройки -----
+async function renderSystemTab() {
+  const container = document.getElementById('settings-content');
+  try {
+    const settingsData = await apiRequest('/settings/system');
+    container.innerHTML = `
+      <h3 style="margin-bottom:12px;">Системные настройки</h3>
+      <div class="form-group">
+        <label>Порог предупреждения о поверке (дней)</label>
+        <input type="number" id="warn-days-input" value="${esc(settingsData.warn_days || '30')}">
+        <small style="color:#64748b;">За сколько дней до окончания срока показывать статус «Скоро поверка»</small>
+      </div>
+      <button class="btn btn-success" onclick="saveSystemSettings()">💾 Сохранить</button>
+    `;
+  } catch (err) {
+    container.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + err.message + '</p>';
+  }
+}
+
+async function saveSystemSettings() {
+  const warnDays = document.getElementById('warn-days-input').value;
+  await apiRequest('/settings/system', 'PUT', { warn_days: String(warnDays) });
+  settings.warnDays = parseInt(warnDays) || 30;
+  showToast('Настройки сохранены', 'success');
+  render();
+}
+
+// ----- Журнал -----
+async function renderLogTab() {
+  const container = document.getElementById('settings-content');
+  try {
+    const logs = await apiRequest('/log?limit=200');
+    let html = `
+      <h3 style="margin-bottom:12px;">Журнал действий (${logs.length})</h3>
+      <button class="btn btn-danger btn-sm" onclick="clearLogFromSettings()" style="margin-bottom:12px;">🗑️ Очистить</button>
+      <div style="max-height:400px;overflow-y:auto;">
+        <table class="log-table">
+          <thead><tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Детали</th></tr></thead>
+          <tbody>`;
+    if (!logs.length) {
+      html += '<tr><td colspan="4" style="text-align:center;padding:20px;color:#94a3b8;">Пусто</td></tr>';
+    } else {
+      for (const l of logs) {
+        html += `<tr>
+          <td class="timestamp">${new Date(l.timestamp).toLocaleString('ru-RU')}</td>
+          <td class="user">${esc(l.user_full_name)}</td>
+          <td class="action">${esc(l.action)}</td>
+          <td class="details">${esc(l.details || '')}</td>
+        </tr>`;
+      }
+    }
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + err.message + '</p>';
+  }
+}
+
+async function clearLogFromSettings() {
+  if (!confirm('Очистить весь журнал?')) return;
+  await apiRequest('/log', 'DELETE');
+  showToast('Журнал очищен', 'success');
+  renderLogTab();
+}
+
+// Закрытие модалок по клику на оверлей
+document.getElementById('import-modal').addEventListener('click', e => {
+  if (e.target.id === 'import-modal') closeImportModal();
+});
+document.getElementById('settings-modal').addEventListener('click', e => {
+  if (e.target.id === 'settings-modal') closeSettingsModal();
+});
 
 console.log('🔬 Система учёта пипеток запущена');
 console.log('👤 admin/admin, senior/senior, user/user');
