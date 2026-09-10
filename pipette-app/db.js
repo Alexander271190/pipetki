@@ -98,7 +98,36 @@ const setCount = db.prepare('SELECT COUNT(*) AS c FROM system_settings').get().c
 if (setCount === 0) {
   db.prepare('INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?)').run('warn_days', '30');
 }
+// --- Демо-пипетки ---
+const pipCount = db.prepare('SELECT COUNT(*) AS c FROM pipettes').get().c;
+if (pipCount === 0) {
+  const today = new Date();
+  const ago = (m) => { const d = new Date(today); d.setMonth(d.getMonth() - m); return d.toISOString().slice(0, 10); };
+  
+  const ins = db.prepare(`INSERT INTO pipettes 
+    (id, serial, manufacturer, model, volume, department, interval,
+     last_calibration, cert, last_result, active, responsible, location, notes)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
 
+  ins.run('П-001', 'EP2024001', 'Eppendorf', 'Research Plus', '1000', 'Гематологический отдел',
+          12, ago(11), 'С-АБ-1234567/2025', 'pass', 1, 'Иванова М.С.', 'Лаб. 201, шкаф 3', '');
+  ins.run('П-002', 'EP2024002', 'Eppendorf', 'Research Plus', '100', 'Биохимический отдел',
+          12, ago(10), 'С-АБ-1234568/2025', 'pass', 1, 'Петров А.В.', 'Лаб. 201, шкаф 3', '');
+  ins.run('П-003', 'GT2023005', 'Gilson', 'Pipetman L', '5000', 'Коагулогический отдел',
+          6, ago(7), 'С-АБ-1234569/2025', 'pass', 1, 'Иванова М.С.', 'Лаб. 105', 'Требует внеочередной проверки');
+  ins.run('П-004', 'BT2022003', 'Biohit', 'mLINE', '200', 'Экспресс отдел',
+          12, ago(14), 'С-АБ-9876546/2024', 'pass', 1, 'Сидорова Е.К.', 'Лаб. 302', '');
+  ins.run('П-005', 'TR2024008', 'Thermo', 'Finnpipette F2', '20', 'Серологический отдел',
+          12, ago(2), 'С-АБ-1234570/2025', 'pass', 0, 'Петров А.В.', 'Склад', 'В резерве');
+  
+  // История поверок для П-001
+  const insHist = db.prepare(`INSERT INTO calibration_history (pipette_id, date, cert, result, org, note)
+                              VALUES (?, ?, ?, ?, ?, ?)`);
+  insHist.run('П-001', ago(23), 'С-АБ-9876543/2024', 'pass', 'ФБУ «Красноярский ЦСМ»', 'Годна');
+  insHist.run('П-001', ago(11), 'С-АБ-1234567/2025', 'pass', 'ФБУ «Красноярский ЦСМ»', 'Годна');
+  insHist.run('П-003', ago(13), 'С-АБ-9876545/2024', 'fail', 'ФБУ «Красноярский ЦСМ»', 'Брак: превышение погрешности');
+  insHist.run('П-003', ago(7), 'С-АБ-1234569/2025', 'pass', 'ФБУ «Красноярский ЦСМ»', 'После ремонта');
+}
 // --- Адаптер под mysql2/promise ---
 function adapt(sql) {
   sql = sql.replace(
