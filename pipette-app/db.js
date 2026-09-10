@@ -75,7 +75,25 @@ CREATE TABLE IF NOT EXISTS system_settings (
   setting_value TEXT,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
-`);
+
+CREATE TABLE IF NOT EXISTS field_config (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  type TEXT NOT NULL,
+  required INTEGER DEFAULT 0,
+  enabled INTEGER DEFAULT 1,
+  options TEXT DEFAULT '[]',
+  default_value TEXT DEFAULT '',
+  field_order INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS export_settings (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  fields TEXT NOT NULL,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
 
 // --- Начальные данные ---
 const userCount = db.prepare('SELECT COUNT(*) AS c FROM users').get().c;
@@ -127,6 +145,36 @@ if (pipCount === 0) {
   insHist.run('П-001', ago(11), 'С-АБ-1234567/2025', 'pass', 'ФБУ «Красноярский ЦСМ»', 'Годна');
   insHist.run('П-003', ago(13), 'С-АБ-9876545/2024', 'fail', 'ФБУ «Красноярский ЦСМ»', 'Брак: превышение погрешности');
   insHist.run('П-003', ago(7), 'С-АБ-1234569/2025', 'pass', 'ФБУ «Красноярский ЦСМ»', 'После ремонта');
+}
+// --- Начальная конфигурация полей ---
+const fieldCount = db.prepare('SELECT COUNT(*) AS c FROM field_config').get().c;
+if (fieldCount === 0) {
+  const ins = db.prepare(`INSERT INTO field_config 
+    (id, label, type, required, enabled, options, default_value, field_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+  ins.run('id', 'Внутренний номер', 'text', 1, 1, '[]', '', 1);
+  ins.run('serial', 'Серийный номер', 'text', 0, 1, '[]', '', 2);
+  ins.run('manufacturer', 'Производитель', 'text', 0, 1, '[]', '', 3);
+  ins.run('model', 'Модель', 'text', 1, 1, '[]', '', 4);
+  ins.run('volume', 'Объём (мкл)', 'text', 0, 1, '[]', '', 5);
+  ins.run('department', 'Отдел', 'select', 0, 1, '[]', '', 6);
+  ins.run('interval', 'Межповерочный интервал (мес.)', 'number', 1, 1, '[]', '12', 7);
+  ins.run('lastCalibration', 'Дата последней поверки', 'date', 1, 1, '[]', '', 8);
+  ins.run('cert', 'Номер свидетельства', 'text', 0, 1, '[]', '', 9);
+  ins.run('result', 'Результат поверки', 'select', 0, 1, '["pass","fail","wip"]', 'pass', 10);
+  ins.run('active', 'Статус эксплуатации', 'select', 0, 1, '["true","false"]', 'true', 11);
+  ins.run('responsible', 'Ответственный сотрудник', 'text', 0, 1, '[]', '', 12);
+  ins.run('location', 'Место хранения', 'text', 0, 1, '[]', '', 13);
+  ins.run('notes', 'Примечание', 'textarea', 0, 1, '[]', '', 14);
+}
+
+// --- Настройки экспорта ---
+const expCount = db.prepare('SELECT COUNT(*) AS c FROM export_settings').get().c;
+if (expCount === 0) {
+  const defaultExport = ['id','serial','manufacturer','model','volume','department',
+    'lastCalibration','nextCalibration','interval','daysLeft','responsible','location',
+    'status','cert','notes'];
+  db.prepare('INSERT INTO export_settings (id, fields) VALUES (1, ?)').run(JSON.stringify(defaultExport));
 }
 // --- Адаптер под mysql2/promise ---
 function adapt(sql) {
