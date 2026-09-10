@@ -674,7 +674,27 @@ async function exportToExcel() {
   URL.revokeObjectURL(url);
   showToast('Файл Excel (CSV) сохранён', 'success');
 }
+// ============================================================
+// ВЫПАДАЮЩЕЕ МЕНЮ ЭКСПОРТА
+// ============================================================
+function toggleExportMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('export-menu');
+  menu.classList.toggle('show');
+}
 
+function closeExportMenu() {
+  const menu = document.getElementById('export-menu');
+  if (menu) menu.classList.remove('show');
+}
+
+// Закрываем меню при клике вне него
+document.addEventListener('click', (e) => {
+  const dropdown = document.getElementById('export-dropdown');
+  if (dropdown && !dropdown.contains(e.target)) {
+    closeExportMenu();
+  }
+});
 // ============================================================
 // НАПОМИНАНИЕ
 // ============================================================
