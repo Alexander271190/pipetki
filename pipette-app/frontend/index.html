@@ -110,6 +110,11 @@
       </div>
 
       <button class="btn btn-primary senior-only admin-only" onclick="openModal()">➕ Добавить пипетку</button>
+<!-- Импорт (только для админа и старшего лаборанта) -->
+<button class="btn btn-warning senior-only admin-only" onclick="openImportModal()">📥 Импорт</button>
+
+<!-- Настройки (только для админа) -->
+<button class="btn btn-warning admin-only" onclick="openSettingsModal()">⚙️ Настройки</button>
       <div class="dropdown" id="export-dropdown" style="position:relative;display:inline-block;">
   <button class="btn btn-secondary" onclick="toggleExportMenu(event)">📤 Экспорт ▾</button>
   <div id="export-menu" class="dropdown-menu">
@@ -263,6 +268,48 @@
     <div class="reminder-actions">
       <button class="btn btn-secondary" onclick="closeReminder(false)">Позже</button>
       <button class="btn btn-success" onclick="closeReminder(true)">✅ Понятно</button>
+    </div>
+  </div>
+</div>
+
+  <!-- Модалка импорта -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <h2>📥 Импорт данных</h2>
+    <div class="form-group">
+      <label>Формат файла</label>
+      <select id="import-format">
+        <option value="json">JSON (полный дамп)</option>
+        <option value="csv">CSV (таблица)</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Файл</label>
+      <input type="file" id="import-file" accept=".json,.csv">
+    </div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeImportModal()">Отмена</button>
+      <button type="button" class="btn btn-success" onclick="handleImport()">📥 Загрузить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Модалка настроек -->
+<div class="modal-overlay" id="settings-modal">
+  <div class="modal modal-lg">
+    <h2>⚙️ Настройки системы</h2>
+    
+    <div class="settings-tabs">
+      <button class="tab-btn active" data-tab="users" onclick="switchSettingsTab('users')">👥 Пользователи</button>
+      <button class="tab-btn" data-tab="departments" onclick="switchSettingsTab('departments')">🏢 Отделы</button>
+      <button class="tab-btn" data-tab="system" onclick="switchSettingsTab('system')">🔧 Система</button>
+      <button class="tab-btn" data-tab="log" onclick="switchSettingsTab('log')">📜 Журнал</button>
+    </div>
+    
+    <div id="settings-content"></div>
+    
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">Закрыть</button>
     </div>
   </div>
 </div>
