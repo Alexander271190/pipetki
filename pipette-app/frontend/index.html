@@ -110,7 +110,17 @@
       </div>
 
       <button class="btn btn-primary senior-only admin-only" onclick="openModal()">➕ Добавить пипетку</button>
-      <button class="btn btn-secondary" onclick="exportToExcel()">📊 Экспорт</button>
+      <div class="dropdown" id="export-dropdown" style="position:relative;display:inline-block;">
+  <button class="btn btn-secondary" onclick="toggleExportMenu(event)">📤 Экспорт ▾</button>
+  <div id="export-menu" class="dropdown-menu">
+    <button class="dropdown-item" onclick="exportToExcel(); closeExportMenu();">
+      📊 Excel (CSV)
+    </button>
+    <button class="dropdown-item" onclick="exportToPDF(); closeExportMenu();">
+      🖨️ PDF
+    </button>
+  </div>
+</div>
     </div>
 
     <div class="table-wrapper">
