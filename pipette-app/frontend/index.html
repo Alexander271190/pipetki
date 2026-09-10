@@ -294,26 +294,36 @@
   </div>
 </div>
 
-<!-- Модалка настроек -->
+<!-- МОДАЛКА НАСТРОЕК -->
 <div class="modal-overlay" id="settings-modal">
   <div class="modal modal-lg">
     <h2>⚙️ Настройки системы</h2>
-    
     <div class="settings-tabs">
-      <button class="tab-btn active" data-tab="users" onclick="switchSettingsTab('users')">👥 Пользователи</button>
+      <button class="tab-btn active" data-tab="fields" onclick="switchSettingsTab('fields')">📋 Поля формы</button>
       <button class="tab-btn" data-tab="departments" onclick="switchSettingsTab('departments')">🏢 Отделы</button>
+      <button class="tab-btn" data-tab="export" onclick="switchSettingsTab('export')">📤 Экспорт</button>
+      <button class="tab-btn" data-tab="users" onclick="switchSettingsTab('users')">👥 Пользователи</button>
       <button class="tab-btn" data-tab="system" onclick="switchSettingsTab('system')">🔧 Система</button>
-      <button class="tab-btn" data-tab="log" onclick="switchSettingsTab('log')">📜 Журнал</button>
+      <button class="tab-btn" data-tab="log" onclick="switchSettingsTab('log')">📜 Лог</button>
+      <button class="tab-btn" data-tab="backup" onclick="switchSettingsTab('backup')">💾 Бэкап</button>
     </div>
-    
     <div id="settings-content"></div>
-    
     <div class="form-actions">
       <button type="button" class="btn btn-secondary" onclick="closeSettingsModal()">Закрыть</button>
     </div>
   </div>
 </div>
 
+  <div class="modal-overlay" id="backup-modal">
+  <div class="modal modal-lg">
+    <h2>🔄 Восстановление из бэкапа</h2>
+    <div id="backup-list-container" style="margin-bottom:20px;"></div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-secondary" onclick="closeBackupModal()">Закрыть</button>
+    </div>
+  </div>
+</div>
+  
 <div class="toast" id="toast"></div>
 
 </body>
