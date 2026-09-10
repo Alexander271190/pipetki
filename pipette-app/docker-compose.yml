@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: pipette_app
+    ports:
+      - "3000:3000"
+    volumes:
+      - app_data:/app/data
+    environment:
+      JWT_SECRET: change_this_secret_key
+      PORT: 3000
+      DB_PATH: /app/data/pipette.db
+    restart: unless-stopped
+
+volumes:
+  app_data:
