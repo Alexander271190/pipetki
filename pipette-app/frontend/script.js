@@ -674,6 +674,80 @@ async function exportToExcel() {
   URL.revokeObjectURL(url);
   showToast('Файл Excel (CSV) сохранён', 'success');
 }
+
+function exportToPDF() {
+  if (!isAuthenticated()) { showToast('Требуется авторизация', 'error'); return; }
+  const data = getFilteredPipettes();
+  if (data.length === 0) { showToast('Нет данных для экспорта', 'error'); return; }
+
+  const labels = { ok: 'В норме', warn: 'Скоро поверка', danger: 'Просрочена', inactive: 'Неактивна' };
+  const today = new Date().toLocaleDateString('ru-RU');
+  const user = currentUser ? currentUser.fullName : '';
+
+  const rows = data.map(p => {
+    const next = getNextDate(p);
+    const status = calcStatus(p);
+    const dl = daysLeft(p);
+    const dlText = status === 'inactive' ? '—'
+      : (dl < 0 ? 'просрочка ' + Math.abs(dl) + ' дн.' : dl + ' дн.');
+    return `
+      <tr>
+        <td>${esc(p.id)}</td>
+        <td>${esc(p.model)}${p.manufacturer ? '<br><small>' + esc(p.manufacturer) + '</small>' : ''}</td>
+        <td>${esc(p.serial || '—')}</td>
+        <td>${p.volume ? esc(p.volume) + ' мкл' : '—'}</td>
+        <td>${esc(p.department || '—')}</td>
+        <td>${formatDate(p.last_calibration)}</td>
+        <td>${formatDate(next)}${dlText !== '—' ? '<br><small>' + dlText + '</small>' : ''}</td>
+        <td>${esc(p.responsible || '—')}</td>
+        <td><span class="status-${status}">${labels[status]}</span></td>
+      </tr>`;
+  }).join('');
+
+  const win = window.open('', '_blank');
+  win.document.write(`
+    <!DOCTYPE html><html lang="ru"><head><meta charset="UTF-8">
+    <title>Реестр пипеток — ${today}</title>
+    <style>
+      @page { size: A4 landscape; margin: 15mm 10mm; }
+      * { box-sizing: border-box; }
+      body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 9pt; color: #1a1a2e; }
+      h1 { font-size: 14pt; margin: 0 0 4px; color: #1e293b; }
+      .meta { font-size: 9pt; color: #64748b; margin-bottom: 12px; border-bottom: 1px solid #cbd5e1; padding-bottom: 8px; }
+      .meta b { color: #1e293b; }
+      table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+      th { background: #1e293b; color: #fff; padding: 6px 5px; text-align: left; font-size: 8pt; text-transform: uppercase; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      td { padding: 5px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+      tr:nth-child(even) td { background: #f8fafc; }
+      small { color: #94a3b8; font-size: 7.5pt; }
+      .status-ok { color: #16a34a; font-weight: 600; }
+      .status-warn { color: #ca8a04; font-weight: 600; }
+      .status-danger { color: #dc2626; font-weight: 700; }
+      .status-inactive { color: #94a3b8; }
+      .footer { margin-top: 15px; font-size: 8pt; color: #94a3b8; display: flex; justify-content: space-between; border-top: 1px solid #e2e8f0; padding-top: 8px; }
+      .footer .sign { margin-top: 20px; }
+    </style></head><body>
+      <h1>🔬 Реестр пипеток — КГБУЗ Краевая клиническая больница КДЛ</h1>
+      <div class="meta">Дата: <b>${today}</b> · Записей: <b>${data.length}</b> · Сформировал: <b>${esc(user)}</b></div>
+      <table>
+        <thead><tr>
+          <th style="width:8%">ID</th><th style="width:16%">Модель / Производитель</th>
+          <th style="width:10%">Серийный</th><th style="width:8%">Объём</th>
+          <th style="width:14%">Отдел</th><th style="width:10%">Поверка</th>
+          <th style="width:12%">Следующая</th><th style="width:12%">Ответственный</th>
+          <th style="width:10%">Статус</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="footer">
+        <div>Документ сформирован автоматически</div>
+        <div class="sign">Подпись: _______________</div>
+      </div>
+    </body></html>`);
+  win.document.close();
+  setTimeout(() => { win.focus(); win.print(); }, 300);
+  showToast('Окно печати открыто — выберите «Сохранить как PDF»', 'success');
+}
 // ============================================================
 // ВЫПАДАЮЩЕЕ МЕНЮ ЭКСПОРТА
 // ============================================================
