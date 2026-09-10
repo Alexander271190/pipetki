@@ -342,81 +342,170 @@ function getFilteredPipettes() {
 // ============================================================
 // CRUD ПИПЕТОК
 // ============================================================
-function generateFormFields(data = null) {
+// ============================================================
+// ДИНАМИЧЕСКАЯ ФОРМА (загружает поля с сервера)
+// ============================================================
+async function generateFormFields(data = null) {
   const container = document.getElementById('form-fields-container');
-  container.innerHTML = '';
+  container.innerHTML = '<p style="color:#94a3b8;padding:10px;">Загрузка полей…</p>';
 
-  const fields = [
-    { id: 'id', label: 'Внутренний номер', type: 'text', required: true },
-    { id: 'serial', label: 'Серийный номер', type: 'text', required: false },
-    { id: 'manufacturer', label: 'Производитель', type: 'text', required: false },
-    { id: 'model', label: 'Модель', type: 'text', required: true },
-    { id: 'volume', label: 'Объём (мкл)', type: 'text', required: false },
-    { id: 'department', label: 'Отдел', type: 'select', required: false },
-    { id: 'interval', label: 'Межповерочный интервал (мес.)', type: 'number', required: true, default: 12 },
-    { id: 'lastCalibration', label: 'Дата последней поверки', type: 'date', required: true },
-    { id: 'cert', label: 'Номер свидетельства', type: 'text', required: false },
-    { id: 'result', label: 'Результат поверки', type: 'select', required: false, options: ['pass', 'fail', 'wip'] },
-    { id: 'active', label: 'Статус эксплуатации', type: 'select', required: false, options: ['true', 'false'] },
-    { id: 'responsible', label: 'Ответственный сотрудник', type: 'text', required: false },
-    { id: 'location', label: 'Место хранения', type: 'text', required: false },
-    { id: 'notes', label: 'Примечание', type: 'textarea', required: false }
-  ];
+  try {
+    // Загружаем конфигурацию полей с сервера
+    const allFields = await apiRequest('/settings/fields');
+    const fields = allFields
+      .filter(f => f.enabled)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
 
-  fields.forEach(f => {
-    const div = document.createElement('div');
-    div.className = 'form-group';
-    const label = document.createElement('label');
-    label.textContent = f.label + (f.required ? ' *' : '');
-    div.appendChild(label);
+    container.innerHTML = '';
 
-    let input;
-    const val = data ? (data[f.id] !== undefined ? data[f.id] : (f.default || '')) : (f.default || '');
-
-    if (f.type === 'textarea') {
-      input = document.createElement('textarea');
-      input.rows = 2;
-      input.value = val;
-    } else if (f.type === 'select') {
-      input = document.createElement('select');
-      const opts = f.options || [''];
-      opts.forEach(opt => {
-        const option = document.createElement('option');
-        option.value = opt;
-        option.textContent = opt || '—';
-        if (String(val) === String(opt)) option.selected = true;
-        input.appendChild(option);
-      });
-    } else {
-      input = document.createElement('input');
-      input.type = f.type === 'date' ? 'date' : (f.type === 'number' ? 'number' : 'text');
-      input.value = val;
+    // Если полей нет — предупреждаем
+    if (fields.length === 0) {
+      container.innerHTML = '<p style="color:#dc2626;padding:10px;">Нет активных полей. Включите их в настройках.</p>';
+      return;
     }
-    input.id = `p-${f.id}`;
-    if (f.required) input.required = true;
-    div.appendChild(input);
-    container.appendChild(div);
-  });
+
+    // Загружаем список отделов (для поля department)
+    let departmentsList = [];
+    try {
+      departmentsList = await apiRequest('/settings/departments');
+    } catch (e) { /* игнорируем */ }
+
+    for (const f of fields) {
+      const div = document.createElement('div');
+      div.className = 'form-group';
+
+      const label = document.createElement('label');
+      label.textContent = f.label + (f.required ? ' *' : '');
+      div.appendChild(label);
+
+      // Значение поля: из data (при редактировании) или default
+      let val;
+      if (data && data[f.id] !== undefined && data[f.id] !== null) {
+        val = data[f.id];
+      } else {
+        val = f.default || '';
+      }
+
+      let input;
+
+      if (f.type === 'textarea') {
+        input = document.createElement('textarea');
+        input.rows = 2;
+        input.placeholder = f.label;
+        input.value = val;
+
+      } else if (f.type === 'select') {
+        input = document.createElement('select');
+
+        // Определяем опции для выпадающего списка
+        let opts = [];
+
+        if (f.id === 'department') {
+          // Для поля «Отдел» — список из таблицы departments
+          opts = departmentsList.length ? departmentsList : (f.options || []);
+        } else if (f.id === 'result') {
+          // Результат поверки — фиксированные значения с русскими метками
+          opts = [
+            { value: 'pass', label: '✅ Годен' },
+            { value: 'fail', label: '❌ Брак' },
+            { value: 'wip',  label: '⏳ В процессе' }
+          ];
+        } else if (f.id === 'active') {
+          // Статус эксплуатации — понятные русские метки
+          opts = [
+            { value: 'true',  label: '✅ В работе' },
+            { value: 'false', label: '⛔ Не используется' }
+          ];
+        } else {
+          // Обычное поле — берём options из конфигурации
+          opts = f.options || [];
+        }
+
+        // Если пусто — ставим пустую опцию
+        if (opts.length === 0) opts = [{ value: '', label: '—' }];
+
+        // Строим <option>
+        opts.forEach(opt => {
+          const optValue = (typeof opt === 'object') ? opt.value : opt;
+          const optLabel = (typeof opt === 'object') ? opt.label : (opt || '—');
+          const option = document.createElement('option');
+          option.value = optValue;
+          option.textContent = optLabel;
+          if (String(val) === String(optValue)) option.selected = true;
+          input.appendChild(option);
+        });
+
+      } else {
+        // Обычный input (text, number, date)
+        input = document.createElement('input');
+        input.type = f.type === 'date' ? 'date'
+                   : f.type === 'number' ? 'number'
+                   : 'text';
+        input.placeholder = f.label;
+        input.value = val;
+      }
+
+      input.id = `p-${f.id}`;
+      input.dataset.fieldId = f.id;
+      if (f.required) input.required = true;
+
+      div.appendChild(input);
+      container.appendChild(div);
+    }
+
+    // Если поле «Отдел» включено — заполняем datalist (если он есть)
+    if (document.getElementById('p-department')) {
+      const datalist = document.getElementById('dept-list');
+      if (datalist) {
+        datalist.innerHTML = departmentsList.map(d => `<option value="${esc(d)}">`).join('');
+      }
+    }
+
+  } catch (err) {
+    console.error('Ошибка загрузки полей:', err);
+    container.innerHTML = '<p style="color:#dc2626;padding:10px;">Ошибка загрузки полей: ' + esc(err.message) + '</p>';
+  }
 }
 
-function openModal(id) {
+// ============================================================
+// ОТКРЫТИЕ МОДАЛКИ (добавление / редактирование)
+// ============================================================
+async function openModal(id) {
   if (!canManagePipettes()) { showToast('Доступ запрещён', 'error'); return; }
+
   const modal = document.getElementById('modal');
   const title = document.getElementById('modal-title');
   document.getElementById('edit-id').value = '';
 
   if (id) {
+    // Режим редактирования
     const p = pipettes.find(x => x.id === id);
-    if (!p) return;
-    title.textContent = 'Редактировать пипетку';
+    if (!p) { showToast('Пипетка не найдена', 'error'); return; }
+
+    title.textContent = '✏️ Редактировать пипетку';
     document.getElementById('edit-id').value = p.id;
-    generateFormFields(p);
+
+    // Показываем модалку сразу (форма подгрузится асинхронно)
+    modal.classList.add('active');
+
+    // Заполняем форму данными
+    await generateFormFields(p);
+
   } else {
-    title.textContent = 'Добавить пипетку';
-    const defaultData = { lastCalibration: new Date().toISOString().slice(0, 10) };
-    generateFormFields(defaultData);
+    // Режим добавления
+    title.textContent = '➕ Добавить пипетку';
+
+    // Подготавливаем значения по умолчанию
+    const defaultData = {
+      lastCalibration: new Date().toISOString().slice(0, 10),
+      interval: 12,
+      result: 'pass',
+      active: 'true'
+    };
+
+    modal.classList.add('active');
+    await generateFormFields(defaultData);
   }
-  modal.classList.add('active');
 }
 
 function closeModal() { document.getElementById('modal').classList.remove('active'); }
@@ -1189,6 +1278,508 @@ document.getElementById('import-modal').addEventListener('click', e => {
 });
 document.getElementById('settings-modal').addEventListener('click', e => {
   if (e.target.id === 'settings-modal') closeSettingsModal();
+});
+// ============================================================
+// НАСТРОЙКИ
+// ============================================================
+function openSettingsModal() {
+  if (!isAdmin()) { showToast('Доступно только администратору', 'error'); return; }
+  document.getElementById('settings-modal').classList.add('active');
+  switchSettingsTab('fields');
+}
+function closeSettingsModal() {
+  document.getElementById('settings-modal').classList.remove('active');
+}
+document.getElementById('settings-modal').addEventListener('click', e => {
+  if (e.target.id === 'settings-modal') closeSettingsModal();
+});
+
+let _cachedFields = [];
+let _cachedDepts = [];
+
+async function switchSettingsTab(tab) {
+  document.querySelectorAll('.settings-tabs .tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  const c = document.getElementById('settings-content');
+  c.innerHTML = '<p style="text-align:center;color:#94a3b8;padding:20px;">Загрузка…</p>';
+
+  if (tab === 'fields') await renderFieldsSettings();
+  else if (tab === 'departments') await renderDepartmentsSettings();
+  else if (tab === 'export') await renderExportSettings();
+  else if (tab === 'users') await renderUsersSettings();
+  else if (tab === 'system') await renderSystemSettings();
+  else if (tab === 'log') await renderLogSettings();
+  else if (tab === 'backup') await renderBackupSettings();
+}
+
+// ============================================================
+// ВКЛАДКА: ПОЛЯ ФОРМЫ
+// ============================================================
+async function renderFieldsSettings() {
+  const c = document.getElementById('settings-content');
+  try {
+    _cachedFields = await apiRequest('/settings/fields');
+    let html = `
+      <h3>Управление полями формы</h3>
+      <p style="color:#64748b;margin-bottom:12px;">Включите/отключите поля, измените порядок, сделайте обязательными.</p>
+      <table class="field-settings-table">
+        <thead><tr>
+          <th style="width:60px;">Порядок</th>
+          <th>Название</th>
+          <th style="width:120px;">Тип</th>
+          <th style="width:80px;">Обяз.</th>
+          <th style="width:80px;">Активно</th>
+          <th>Список значений</th>
+          <th style="width:60px;"></th>
+        </tr></thead><tbody>`;
+
+    _cachedFields.forEach((f, i) => {
+      html += `<tr>
+        <td><div class="order-btns">
+          <button class="btn btn-secondary btn-sm" onclick="moveFieldSetting(${i},-1)">▲</button>
+          <button class="btn btn-secondary btn-sm" onclick="moveFieldSetting(${i},1)">▼</button>
+        </div></td>
+        <td><input type="text" value="${esc(f.label)}" onchange="_cachedFields[${i}].label=this.value"></td>
+        <td><select onchange="_cachedFields[${i}].type=this.value">
+          <option value="text" ${f.type==='text'?'selected':''}>Текст</option>
+          <option value="number" ${f.type==='number'?'selected':''}>Число</option>
+          <option value="date" ${f.type==='date'?'selected':''}>Дата</option>
+          <option value="select" ${f.type==='select'?'selected':''}>Список</option>
+          <option value="textarea" ${f.type==='textarea'?'selected':''}>Текст. область</option>
+        </select></td>
+        <td style="text-align:center;"><input type="checkbox" ${f.required?'checked':''} onchange="_cachedFields[${i}].required=this.checked"></td>
+        <td style="text-align:center;"><input type="checkbox" ${f.enabled?'checked':''} onchange="_cachedFields[${i}].enabled=this.checked"></td>
+        <td>${f.type === 'select' 
+          ? `<textarea rows="2" onchange="_cachedFields[${i}].options=this.value.split('\\n').map(s=>s.trim()).filter(Boolean)">${esc((f.options||[]).join('\n'))}</textarea>`
+          : '—'}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteFieldSetting(${i})">🗑️</button></td>
+      </tr>`;
+    });
+    html += `</tbody></table>
+      <button class="btn btn-primary" onclick="addFieldSetting()" style="margin-top:12px;">➕ Добавить поле</button>
+      <button class="btn btn-success" onclick="saveFieldsSettings()" style="margin-top:12px;margin-left:10px;">💾 Сохранить изменения</button>`;
+    c.innerHTML = html;
+  } catch (e) {
+    c.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + e.message + '</p>';
+  }
+}
+
+function moveFieldSetting(idx, dir) {
+  const to = idx + dir;
+  if (to < 0 || to >= _cachedFields.length) return;
+  [_cachedFields[idx], _cachedFields[to]] = [_cachedFields[to], _cachedFields[idx]];
+  _cachedFields.forEach((f, i) => f.order = i + 1);
+  renderFieldsSettings();
+}
+
+function addFieldSetting() {
+  const id = prompt('ID нового поля (латиницей, без пробелов):');
+  if (!id || !/^[a-zA-Z][a-zA-Z0-9_]*$/.test(id)) { showToast('Некорректный ID', 'error'); return; }
+  if (_cachedFields.some(f => f.id === id)) { showToast('Поле с таким ID уже существует', 'error'); return; }
+  _cachedFields.push({ id, label: id, type: 'text', required: false, enabled: true, options: [], default: '', order: _cachedFields.length + 1 });
+  renderFieldsSettings();
+}
+
+function deleteFieldSetting(idx) {
+  if (!confirm(`Удалить поле «${_cachedFields[idx].label}»?`)) return;
+  _cachedFields.splice(idx, 1);
+  _cachedFields.forEach((f, i) => f.order = i + 1);
+  renderFieldsSettings();
+}
+
+async function saveFieldsSettings() {
+  try {
+    await apiRequest('/settings/fields', 'PUT', _cachedFields);
+    showToast('Поля сохранены', 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ============================================================
+// ВКЛАДКА: ОТДЕЛЫ
+// ============================================================
+async function renderDepartmentsSettings() {
+  const c = document.getElementById('settings-content');
+  try {
+    _cachedDepts = await apiRequest('/settings/departments');
+    let html = '<h3>Управление отделами</h3>';
+    html += '<div style="margin:12px 0;">';
+    if (_cachedDepts.length === 0) {
+      html += '<p style="color:#94a3b8;">Нет отделов</p>';
+    } else {
+      _cachedDepts.forEach((d, i) => {
+        html += `<div class="dept-item">
+          <span class="dept-name">${esc(d)}</span>
+          <div class="dept-actions">
+            <button class="btn btn-secondary btn-sm" onclick="editDeptSetting(${i})">✏️</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteDeptSetting(${i})">🗑️</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += `</div>
+      <div style="margin-top:16px;display:flex;gap:10px;">
+        <input type="text" id="new-dept-name" placeholder="Название нового отдела" style="flex:1;padding:9px 12px;border:1px solid #d1d5db;border-radius:8px;">
+        <button class="btn btn-success" onclick="addDeptSetting()">➕ Добавить</button>
+      </div>`;
+    c.innerHTML = html;
+  } catch (e) {
+    c.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + e.message + '</p>';
+  }
+}
+
+async function addDeptSetting() {
+  const name = document.getElementById('new-dept-name').value.trim();
+  if (!name) { showToast('Введите название', 'error'); return; }
+  if (_cachedDepts.includes(name)) { showToast('Уже есть', 'error'); return; }
+  _cachedDepts.push(name);
+  await apiRequest('/settings/departments', 'PUT', _cachedDepts);
+  showToast('Отдел добавлен', 'success');
+  await renderDepartmentsSettings();
+  await loadDepartments();
+}
+
+async function editDeptSetting(idx) {
+  const newName = prompt('Новое название:', _cachedDepts[idx]);
+  if (!newName || !newName.trim()) return;
+  const t = newName.trim();
+  if (_cachedDepts.includes(t) && t !== _cachedDepts[idx]) { showToast('Уже есть', 'error'); return; }
+  _cachedDepts[idx] = t;
+  await apiRequest('/settings/departments', 'PUT', _cachedDepts);
+  showToast('Отдел обновлён', 'success');
+  await renderDepartmentsSettings();
+  await loadDepartments();
+}
+
+async function deleteDeptSetting(idx) {
+  if (!confirm(`Удалить «${_cachedDepts[idx]}»?`)) return;
+  _cachedDepts.splice(idx, 1);
+  await apiRequest('/settings/departments', 'PUT', _cachedDepts);
+  showToast('Отдел удалён', 'success');
+  await renderDepartmentsSettings();
+  await loadDepartments();
+}
+
+// ============================================================
+// ВКЛАДКА: ЭКСПОРТ
+// ============================================================
+const EXPORT_FIELDS = [
+  { id: 'id', label: 'Внутренний номер' },
+  { id: 'serial', label: 'Серийный номер' },
+  { id: 'manufacturer', label: 'Производитель' },
+  { id: 'model', label: 'Модель' },
+  { id: 'volume', label: 'Объём (мкл)' },
+  { id: 'department', label: 'Отдел' },
+  { id: 'lastCalibration', label: 'Дата поверки' },
+  { id: 'nextCalibration', label: 'Следующая поверка' },
+  { id: 'interval', label: 'МПИ (мес.)' },
+  { id: 'daysLeft', label: 'Дней до поверки' },
+  { id: 'responsible', label: 'Ответственный' },
+  { id: 'location', label: 'Место хранения' },
+  { id: 'status', label: 'Статус' },
+  { id: 'cert', label: 'Свидетельство' },
+  { id: 'notes', label: 'Примечание' }
+];
+
+async function renderExportSettings() {
+  const c = document.getElementById('settings-content');
+  try {
+    const selected = await apiRequest('/settings/export');
+    let html = `<h3>Настройки экспорта</h3>
+      <p style="color:#64748b;margin-bottom:12px;">Выберите поля для PDF/Excel</p>
+      <div class="export-fields-grid">`;
+    EXPORT_FIELDS.forEach(f => {
+      html += `<label><input type="checkbox" value="${f.id}" ${selected.includes(f.id) ? 'checked' : ''} class="exp-field-cb"> ${f.label}</label>`;
+    });
+    html += `</div><button class="btn btn-success" onclick="saveExportSettings()">💾 Сохранить</button>`;
+    c.innerHTML = html;
+  } catch (e) {
+    c.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + e.message + '</p>';
+  }
+}
+
+async function saveExportSettings() {
+  const selected = Array.from(document.querySelectorAll('.exp-field-cb:checked')).map(cb => cb.value);
+  await apiRequest('/settings/export', 'PUT', selected);
+  showToast('Настройки экспорта сохранены', 'success');
+}
+
+// ============================================================
+// ВКЛАДКА: ПОЛЬЗОВАТЕЛИ
+// ============================================================
+async function renderUsersSettings() {
+  const c = document.getElementById('settings-content');
+  try {
+    const users = await apiRequest('/users');
+    const roleLabels = { user: 'Пользователь', senior_lab: 'Ст. лаборант', admin: 'Администратор' };
+    const curId = currentUser.id;
+
+    let html = '<h3>Управление пользователями</h3>';
+    html += `<table class="field-settings-table" style="margin-bottom:20px;"><thead><tr>
+      <th>Логин</th><th>ФИО</th><th>Должность</th><th>Отдел</th><th>Роль</th><th>Действия</th>
+    </tr></thead><tbody>`;
+
+    users.forEach(u => {
+      html += `<tr>
+        <td>${esc(u.login)}</td>
+        <td>${esc(u.fullName || u.full_name)}</td>
+        <td>${esc(u.position)}</td>
+        <td>${esc(u.department || '—')}</td>
+        <td>${roleLabels[u.role] || u.role}</td>
+        <td class="actions">
+          <button class="btn btn-secondary btn-sm" onclick="editUserSetting('${u.id}')">✏️</button>
+          ${u.id !== curId ? `<button class="btn btn-danger btn-sm" onclick="deleteUserSetting('${u.id}')">🗑️</button>` : ''}
+        </td>
+      </tr>`;
+    });
+    html += `</tbody></table>
+      <div class="settings-form">
+        <h4 id="user-form-title">➕ Добавить пользователя</h4>
+        <input type="hidden" id="usr-edit-id">
+        <div class="form-row">
+          <div class="form-group"><label>Логин *</label><input id="usr-login"></div>
+          <div class="form-group"><label>Пароль</label><input id="usr-password" placeholder="оставьте пустым при редактировании"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>ФИО *</label><input id="usr-fullname"></div>
+          <div class="form-group"><label>Должность *</label><input id="usr-position"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Отдел</label><input id="usr-department"></div>
+          <div class="form-group"><label>Роль</label>
+            <select id="usr-role">
+              <option value="user">Пользователь</option>
+              <option value="senior_lab">Старший лаборант</option>
+              <option value="admin">Администратор</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-actions" style="justify-content:flex-start;">
+          <button class="btn btn-success" onclick="saveUserSetting()">💾 Сохранить</button>
+          <button class="btn btn-secondary" onclick="resetUserSettingForm()">Отмена</button>
+        </div>
+      </div>`;
+    c.innerHTML = html;
+  } catch (e) {
+    c.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + e.message + '</p>';
+  }
+}
+
+function resetUserSettingForm() {
+  ['usr-edit-id','usr-login','usr-password','usr-fullname','usr-position','usr-department'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('usr-role').value = 'user';
+  document.getElementById('user-form-title').textContent = '➕ Добавить пользователя';
+}
+
+async function editUserSetting(id) {
+  try {
+    const users = await apiRequest('/users');
+    const u = users.find(x => x.id === id);
+    if (!u) return;
+    document.getElementById('usr-edit-id').value = u.id;
+    document.getElementById('usr-login').value = u.login;
+    document.getElementById('usr-password').value = '';
+    document.getElementById('usr-fullname').value = u.fullName || u.full_name;
+    document.getElementById('usr-position').value = u.position;
+    document.getElementById('usr-department').value = u.department || '';
+    document.getElementById('usr-role').value = u.role;
+    document.getElementById('user-form-title').textContent = '✏️ ' + u.login;
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function saveUserSetting() {
+  const id = document.getElementById('usr-edit-id').value;
+  const login = document.getElementById('usr-login').value.trim();
+  const password = document.getElementById('usr-password').value.trim();
+  const fullName = document.getElementById('usr-fullname').value.trim();
+  const position = document.getElementById('usr-position').value.trim();
+  const department = document.getElementById('usr-department').value.trim();
+  const role = document.getElementById('usr-role').value;
+
+  if (!login || !fullName || !position) { showToast('Заполните поля', 'error'); return; }
+  if (!id && !password) { showToast('Укажите пароль', 'error'); return; }
+
+  try {
+    if (id) {
+      await apiRequest('/users/' + id, 'PUT', { login, password, fullName, position, department, role, extraPermissions: [] });
+      showToast('Пользователь обновлён', 'success');
+    } else {
+      await apiRequest('/users', 'POST', { login, password, fullName, position, department, role, extraPermissions: [] });
+      showToast('Пользователь создан', 'success');
+    }
+    renderUsersSettings();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteUserSetting(id) {
+  if (!confirm('Удалить пользователя?')) return;
+  try {
+    await apiRequest('/users/' + id, 'DELETE');
+    showToast('Удалён', 'success');
+    renderUsersSettings();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+// ============================================================
+// ВКЛАДКА: СИСТЕМА
+// ============================================================
+async function renderSystemSettings() {
+  const c = document.getElementById('settings-content');
+  try {
+    const s = await apiRequest('/settings/system');
+    c.innerHTML = `<h3>Системные настройки</h3>
+      <div class="settings-form">
+        <div class="form-group">
+          <label>Порог предупреждения о поверке (дней)</label>
+          <input type="number" id="sys-warn-days" value="${esc(s.warn_days || '30')}" min="1" max="365">
+        </div>
+        <button class="btn btn-success" onclick="saveSystemSetting()">💾 Сохранить</button>
+      </div>`;
+  } catch (e) {
+    c.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + e.message + '</p>';
+  }
+}
+
+async function saveSystemSetting() {
+  const wd = document.getElementById('sys-warn-days').value;
+  await apiRequest('/settings/system', 'PUT', { warn_days: String(wd) });
+  settings.warnDays = parseInt(wd) || 30;
+  showToast('Настройки сохранены', 'success');
+  render();
+}
+
+// ============================================================
+// ВКЛАДКА: ЛОГ
+// ============================================================
+async function renderLogSettings() {
+  const c = document.getElementById('settings-content');
+  try {
+    const logs = await apiRequest('/log?limit=200');
+    let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h3>Журнал действий (${logs.length})</h3>
+      <button class="btn btn-danger btn-sm" onclick="clearLogSetting()">🗑️ Очистить</button>
+    </div>
+    <div class="log-container"><table class="log-table">
+      <thead><tr><th>Время</th><th>Пользователь</th><th>Действие</th><th>Детали</th></tr></thead><tbody>`;
+    if (!logs.length) {
+      html += '<tr><td colspan="4" style="text-align:center;padding:20px;color:#94a3b8;">Пусто</td></tr>';
+    } else {
+      for (const l of logs) {
+        html += `<tr>
+          <td class="timestamp">${new Date(l.timestamp).toLocaleString('ru-RU')}</td>
+          <td class="user">${esc(l.user_full_name)}</td>
+          <td class="action">${esc(l.action)}</td>
+          <td>${esc(l.details || '')}</td>
+        </tr>`;
+      }
+    }
+    html += '</tbody></table></div>';
+    c.innerHTML = html;
+  } catch (e) {
+    c.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + e.message + '</p>';
+  }
+}
+
+async function clearLogSetting() {
+  if (!confirm('Очистить журнал?')) return;
+  await apiRequest('/log', 'DELETE');
+  showToast('Журнал очищен', 'success');
+  renderLogSettings();
+}
+
+// ============================================================
+// ВКЛАДКА: БЭКАП
+// ============================================================
+async function renderBackupSettings() {
+  const c = document.getElementById('settings-content');
+  try {
+    const backups = await apiRequest('/backup');
+    let html = `<h3>Резервные копии</h3>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;margin:12px 0;">
+        <button class="btn btn-warning" onclick="createBackupSetting()">💾 Создать бэкап</button>
+        <button class="btn btn-secondary" onclick="openBackupList()">🔄 Восстановить</button>
+        <button class="btn btn-danger" onclick="resetAllDataSetting()">🗑️ Сбросить данные</button>
+      </div>
+      <h4 style="margin-top:20px;">Доступные бэкапы (${backups.length})</h4>
+      <div>`;
+    if (!backups.length) {
+      html += '<p style="color:#94a3b8;">Нет бэкапов</p>';
+    } else {
+      backups.forEach(b => {
+        html += `<div class="dept-item">
+          <span class="dept-name">📁 ${esc(b.name)} (${(b.size/1024).toFixed(1)} KB)</span>
+          <div class="dept-actions">
+            <a class="btn btn-secondary btn-sm" href="/api/backup/download/${esc(b.name)}" download>⬇️</a>
+            <button class="btn btn-danger btn-sm" onclick="deleteBackupSetting('${esc(b.name)}')">🗑️</button>
+          </div>
+        </div>`;
+      });
+    }
+    html += `</div>`;
+    c.innerHTML = html;
+  } catch (e) {
+    c.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + e.message + '</p>';
+  }
+}
+
+async function createBackupSetting() {
+  try {
+    await apiRequest('/backup', 'POST', {});
+    showToast('Бэкап создан', 'success');
+    renderBackupSettings();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function deleteBackupSetting(name) {
+  if (!confirm('Удалить бэкап?')) return;
+  await apiRequest('/backup/' + encodeURIComponent(name), 'DELETE');
+  showToast('Удалён', 'success');
+  renderBackupSettings();
+}
+
+async function resetAllDataSetting() {
+  if (!confirm('Удалить ВСЕ пипетки и историю? Это необратимо!')) return;
+  if (!confirm('Точно?')) return;
+  await apiRequest('/backup/reset', 'POST', {});
+  showToast('Данные удалены', 'success');
+  await loadPipetteData();
+  closeSettingsModal();
+}
+
+async function openBackupList() {
+  const c = document.getElementById('backup-list-container');
+  try {
+    const backups = await apiRequest('/backup');
+    if (!backups.length) { showToast('Нет бэкапов', 'error'); return; }
+    c.innerHTML = '<p style="color:#64748b;">Выберите бэкап для восстановления:</p>';
+    backups.forEach(b => {
+      c.innerHTML += `<div class="dept-item">
+        <span class="dept-name">📁 ${esc(b.name)} (${(b.size/1024).toFixed(1)} KB)</span>
+        <button class="btn btn-success btn-sm" onclick="doRestoreSetting('${esc(b.name)}')">Восстановить</button>
+      </div>`;
+    });
+    document.getElementById('backup-modal').classList.add('active');
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+async function doRestoreSetting(name) {
+  if (!confirm('Восстановить из этого бэкапа? Текущие данные будут потеряны.')) return;
+  try {
+    const r = await apiRequest('/backup/restore/' + encodeURIComponent(name), 'POST', {});
+    showToast('Бэкап восстановлен. Перезапустите приложение.', 'success');
+    closeBackupModal();
+  } catch (e) { showToast(e.message, 'error'); }
+}
+
+function closeBackupModal() {
+  document.getElementById('backup-modal').classList.remove('active');
+}
+document.getElementById('backup-modal').addEventListener('click', e => {
+  if (e.target.id === 'backup-modal') closeBackupModal();
 });
 
 console.log('🔬 Система учёта пипеток запущена');
