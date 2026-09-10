@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>КГБУЗ Краевая клиническая больница КДЛ — учёт пипеток и поверок</title>
+  <title>КГБУЗ Краевая клиническая больница КДЛ — учёт оборудования и поверок</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="script.js" defer></script>
@@ -32,7 +32,7 @@
 <!-- ОСНОВНОЙ КОНТЕНТ -->
 <div class="main-content" id="main-content">
   <div class="header">
-    <h1><span class="logo">🔬</span> КГБУЗ Краевая клиническая больница КДЛ - учёт пипеток и их поверок</h1>
+    <h1><span class="logo">🔬</span> КГБУЗ Краевая клиническая больница КДЛ - учёт оборудования и их поверок</h1>
     <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
       <div class="header-stats">
         <div class="stat-card ok"><div class="num" id="stat-ok">0</div><div class="label">В норме</div></div>
@@ -134,7 +134,7 @@
 
     <div class="empty-state" id="empty-state" style="display:none">
       <div class="icon">🔬</div>
-      <p>Пипеток пока нет. Нажмите «Добавить пипетку», чтобы начать.</p>
+      <p> Оборудования пока нет. Нажмите «Добавить оборудование», чтобы начать.</p>
     </div>
   </div>
 </div>
@@ -142,7 +142,7 @@
 <!-- МОДАЛЬНЫЕ ОКНА -->
 <div class="modal-overlay" id="modal">
   <div class="modal">
-    <h2 id="modal-title">Добавить пипетку</h2>
+    <h2 id="modal-title">Добавить оборудование</h2>
     <form id="pipette-form" onsubmit="savePipette(event)">
       <input type="hidden" id="edit-id">
       <div id="form-fields-container"></div>
