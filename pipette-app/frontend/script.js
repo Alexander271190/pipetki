@@ -515,35 +515,39 @@ async function savePipette(e) {
   if (!canManagePipettes()) { showToast('Доступ запрещён', 'error'); return; }
 
   const editId = document.getElementById('edit-id').value;
-  const fields = ['id', 'serial', 'manufacturer', 'model', 'volume', 'department', 'interval', 'lastCalibration', 'cert', 'result', 'active', 'responsible', 'location', 'notes'];
+  const container = document.getElementById('form-fields-container');
   const data = {};
   let valid = true;
 
-  fields.forEach(f => {
-    const el = document.getElementById(`p-${f}`);
-    if (el) {
-      const val = el.value;
-      data[f] = val;
-      if (f === 'id' || f === 'model' || f === 'interval' || f === 'lastCalibration') {
-        if (!val) {
-          valid = false;
-          el.style.borderColor = '#dc2626';
-        } else {
-          el.style.borderColor = '';
-        }
-      }
+  const inputs = container.querySelectorAll('input, select, textarea');
+  inputs.forEach(el => {
+    const fieldId = el.dataset.fieldId;
+    if (!fieldId) return;
+
+    let value = el.value;
+    data[fieldId] = value;
+
+    if (el.required && !value) {
+      valid = false;
+      el.style.borderColor = '#dc2626';
+    } else {
+      el.style.borderColor = '';
     }
   });
 
   if (!valid) { showToast('Заполните обязательные поля', 'error'); return; }
+
+  if (data.interval) data.interval = parseInt(data.interval) || 12;
+  if (data.active !== undefined) {
+    data.active = data.active === 'true' || data.active === true;
+  }
+
   if (data.lastCalibration && new Date(data.lastCalibration) > new Date()) {
     showToast('Дата поверки не может быть в будущем', 'error');
     return;
   }
 
-  data.interval = parseInt(data.interval) || 12;
-  data.active = data.active === 'true' || data.active === true;
-  if (data.lastCalibration) data.lastResult = data.result || 'pass';
+  if (data.result) data.lastResult = data.result;
 
   try {
     if (editId) {
@@ -559,7 +563,6 @@ async function savePipette(e) {
     showToast(error.message || 'Ошибка сохранения', 'error');
   }
 }
-
 async function deletePipette(id) {
   if (!canManagePipettes()) { showToast('Доступ запрещён', 'error'); return; }
   if (!confirm(`Удалить пипетку ${id} со всей историей?`)) return;
