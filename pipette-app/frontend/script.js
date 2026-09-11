@@ -1447,6 +1447,27 @@ async function renderUsersSettings() {
             </select>
           </div>
         </div>
+            <!-- Блок прав доступа -->
+    <div class="form-group">
+      <label>Права доступа (влияют на видимость кнопок)</label>
+      <div class="permissions-group" id="usr-permissions">
+        <label>
+          <input type="checkbox" value="manage_pipettes">
+          ➕ Управление пипетками
+        </label>
+        <label>
+          <input type="checkbox" value="import_data">
+          📥 Импорт данных
+        </label>
+        <label>
+          <input type="checkbox" value="export_data">
+          📤 Экспорт данных
+        </label>
+      </div>
+      <small style="color:#64748b;display:block;margin-top:8px;">
+        Для администратора все права включены автоматически.
+      </small>
+    </div>
         <div class="form-actions" style="justify-content:flex-start;">
           <button class="btn btn-success" onclick="saveUserSetting()">💾 Сохранить</button>
           <button class="btn btn-secondary" onclick="resetUserSettingForm()">Отмена</button>
