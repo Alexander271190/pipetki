@@ -147,7 +147,6 @@ async function loginUser(e) {
     setSession(result.user, result.token);
     showToast(`Добро пожаловать, ${result.user.fullName}!`, 'success');
     renderAuthUI();
-    await loadPipetteData();
   } catch (error) {
     errorEl.textContent = error.message || 'Ошибка входа';
   }
@@ -171,7 +170,6 @@ async function impersonateUser(userId) {
     setSession(result.user, result.token, originalUser, originalToken);
     showToast('Вы вошли как ' + result.user.fullName, 'success');
     renderAuthUI();
-    await loadPipetteData();
   } catch (e) {
     showToast(e.message, 'error');
   }
@@ -239,19 +237,6 @@ async function loadDepartments() {
 // ============================================================
 // СТАТУСЫ ПИПЕТОК
 // ============================================================
-function calcStatus(p) {
-  if (!p.active) return 'inactive';
-  if (!p.last_calibration || !p.interval) return 'danger';
-  const last = new Date(p.last_calibration);
-  const next = new Date(last);
-  next.setMonth(next.getMonth() + p.interval);
-  const now = new Date(); now.setHours(0,0,0,0);
-  const daysLeft = Math.ceil((next - now) / 86400000);
-  if (daysLeft < 0) return 'danger';
-  if (daysLeft <= settings.warnDays) return 'warn';
-  return 'ok';
-}
-
 function getNextDate(p) {
   if (!p.last_calibration || !p.interval) return null;
   const d = new Date(p.last_calibration);
@@ -1090,7 +1075,7 @@ if (session) {
   authToken = session.token;
   currentUser = session.user;
   renderAuthUI();
-  loadPipetteData();
+  
 }
 // ============================================================
 // ИМПОРТ ДАННЫХ
