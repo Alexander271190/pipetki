@@ -1497,14 +1497,15 @@ async function renderUsersSettings() {
 }
 function onUserRoleChange(role) {
   const checkboxes = document.querySelectorAll('#usr-permissions input[type="checkbox"]');
-  const base = getBasePermissions(role) || [];
   checkboxes.forEach(cb => {
     if (role === 'admin') {
+      // Админ — все права включены и заблокированы
       cb.checked = true;
       cb.disabled = true;
     } else {
+      // Пользователь и старший лаборант — все галочки пустые
       cb.disabled = false;
-      cb.checked = base.includes(cb.value);
+      cb.checked = false;
     }
   });
 }
