@@ -110,21 +110,17 @@
         </div>
       </div>
 
-      <button class="btn btn-primary senior-only admin-only" onclick="openModal()">➕ Добавить пипетку</button>
-<!-- Импорт (только для админа и старшего лаборанта) -->
-<button class="btn btn-warning senior-only admin-only" onclick="openImportModal()">📥 Импорт</button>
+   <button class="btn btn-primary btn-add-pipette" onclick="openModal()">➕ Добавить пипетку</button>
 
-<!-- Настройки (только для админа) -->
-<button class="btn btn-warning admin-only" onclick="openSettingsModal()">⚙️ Настройки</button>
-      <div class="dropdown" id="export-dropdown" style="position:relative;display:inline-block;">
+<button class="btn btn-warning btn-import" onclick="openImportModal()">📥 Импорт</button>
+
+<button class="btn btn-warning btn-settings" onclick="openSettingsModal()">⚙️ Настройки</button>
+
+<div class="dropdown btn-export" id="export-dropdown" style="position:relative;display:inline-block;">
   <button class="btn btn-secondary" onclick="toggleExportMenu(event)">📤 Экспорт ▾</button>
   <div id="export-menu" class="dropdown-menu">
-    <button class="dropdown-item" onclick="exportToExcel(); closeExportMenu();">
-      📊 Excel (CSV)
-    </button>
-    <button class="dropdown-item" onclick="exportToPDF(); closeExportMenu();">
-      🖨️ PDF
-    </button>
+    <button class="dropdown-item" onclick="exportToExcel(); closeExportMenu();">📊 Excel (CSV)</button>
+    <button class="dropdown-item" onclick="exportToPDF(); closeExportMenu();">🖨️ PDF</button>
   </div>
 </div>
     </div>
