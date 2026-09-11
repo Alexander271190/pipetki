@@ -1359,6 +1359,7 @@ async function renderUsersSettings() {
         <td>${roleLabels[u.role] || u.role}</td>
         <td class="actions">
           <button class="btn btn-secondary btn-sm" onclick="editUserSetting('${u.id}')">✏️</button>
+          ${u.id !== curId ? `<button class="btn btn-info btn-sm" onclick="impersonateUser('${u.id}')" title="Войти под этим пользователем">🔍 Войти как</button>` : ''}
           ${u.id !== curId ? `<button class="btn btn-danger btn-sm" onclick="deleteUserSetting('${u.id}')">🗑️</button>` : ''}
         </td>
       </tr>`;
