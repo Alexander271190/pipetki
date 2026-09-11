@@ -1,0 +1,131 @@
+Баг №2: «Мёртвые» кнопки в модалке истории
+В index.html есть кнопки, чьи функции не определены в script.js:
+
+html
+<button class="btn btn-danger btn-sm admin-only senior-only" onclick="deleteHistory()"
+        id="btn-delete-history" style="margin-right:auto;display:none">🗑️ Удалить запись</button>
+Функция deleteHistory() в script.js отсутствует. Но кнопка display:none и её никто не показывает — поэтому безопасно.
+
+Что делать: либо удалить кнопку из HTML, либо оставить как есть (не мешает).
+
+
+
+Баг №3: calcStatus — неактивные просроченные
+Функция calcStatus:
+
+javascript
+function calcStatus(p) {
+  if (!p.active) return 'inactive';       // ← приоритет: неактивные первыми
+  // ... проверка просрочки ...
+}
+Если у пипетки active = false и просроченная поверка — она покажет «Неактивна», а не «Просрочена».
+
+Это было замечание ранее — вы хотели, чтобы просрочка показывалась даже у неактивных. Если так — нужно поменять порядок:
+
+javascript
+function calcStatus(p) {
+  // Сначала проверяем просрочку
+  if (p.last_calibration && p.interval) {
+    const last = new Date(p.last_calibration);
+    const next = new Date(last);
+    next.setMonth(next.getMonth() + p.interval);
+    const now = new Date(); now.setHours(0,0,0,0);
+    const dl = Math.ceil((next - now) / 86400000);
+    if (dl < 0) return 'danger';
+  }
+  if (!p.active) return 'inactive';
+  // ...
+}
+Решение: если хотите — замените calcStatus на версию с приоритетом просрочки.
+
+Я редактировал
+
+function calcStatus(p) {
+  if (!p.active) return 'inactive';
+  if (!p.last_calibration || !p.interval) return 'danger';
+  const last = new Date(p.last_calibration);
+  const next = new Date(last);
+  next.setMonth(next.getMonth() + p.interval);
+  const now = new Date(); now.setHours(0,0,0,0);
+  const daysLeft = Math.ceil((next - now) / 86400000);
+  if (daysLeft < 0) return 'danger';
+  if (!p.active) return 'inactive';
+  if (daysLeft <= settings.warnDays) return 'warn';
+  return 'ok';
+}
+
+
+
+
+
+Баг №4: Двойной showToast при истечении сессии
+При истечении токена apiRequest ловит 401:
+
+javascript
+if (response.status === 401) {
+  clearSession();
+  renderAuthUI();
+  showToast('Сессия истекла, войдите заново', 'error');   // ← Toast 1
+  throw new Error('Неавторизован');
+}
+Тот, кто вызвал apiRequest (например, loadPipetteData), тоже показывает toast:
+
+javascript
+catch (error) {
+  showToast('Ошибка загрузки данных', 'error');   // ← Toast 2
+}
+Последствие: два подряд сообщения.
+
+Как исправить: в loadPipetteData и подобных не показывать toast, если ошибка 'Неавторизован':
+
+javascript
+catch (error) {
+  if (error.message !== 'Неавторизован') {
+    showToast('Ошибка загрузки данных', 'error');
+  }
+}
+Не критично, но улучшает UX.
+
+🟢 Косметические замечания
+Замечание №1: Остались классы admin-only / senior-only
+В index.html:
+
+html
+<button class="btn btn-info admin-only senior-only" onclick="openCalibrationForm()">➕ Добавить поверку</button>
+Но в style.css больше нет:
+
+css
+.admin-only, .senior-only { display: none; }
+body.admin-mode .admin-only { display: inline-flex; }
+Последствие: кнопка видна всем. Но функция openCalibrationForm имеет проверку canManagePipettes(), поэтому безопасно.
+
+Что делать: либо удалить классы из HTML, либо вернуть CSS:
+
+css
+.admin-only, .senior-only { display: none; }
+body.is-admin .admin-only { display: inline-flex; }
+body.can-manage .senior-only { display: inline-flex; }
+Замечание №2: checkReminder игнорирует неактивные просроченные
+Если решите исправить Баг №3 — обновите checkReminder (не обязательно).
+
+📋 Итоговый чек-лист
+#	Проблема	Критично?	Действие
+1	loadPipetteData дублируется	🟡 Нет	Убрать внешние вызовы
+2	deleteHistory не определена	🟢 Нет	Удалить кнопку или оставить
+3	calcStatus — приоритет inactive	🟡 По желанию	Переписать функцию
+4	Двойной showToast при 401	🟢 Нет	Добавить фильтр по error.message
+5	Классы admin-only/senior-only без CSS	🟢 Нет	Вернуть CSS или убрать классы
+🎯 Итог
+Работать будет. Основные функции — авторизация, права, impersonate, CRUD, настройки, экспорт/импорт — корректны.
+
+Из явных багов — только дублирование loadPipetteData. Он не ломает приложение, но нагружает сервер лишними запросами.
+
+Что можно сделать по желанию:
+
+Убрать двойные вызовы loadPipetteData() (в 3 местах) — 2 минуты работы.
+
+Изменить calcStatus — приоритет просрочки над неактивностью.
+
+Вернуть стили .admin-only/.senior-only в CSS, если хотите скрывать кнопки через классы.
+
+Удалить из index.html мёртвую кнопку btn-delete-history (или добавить функцию).
