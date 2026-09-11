@@ -199,10 +199,7 @@ tbody tr:hover { background: #f8fafc; }
 .main-content { display: none; }
 .main-content.visible { display: block; }
 .auth-container.hidden { display: none; }
-.admin-only, .senior-only { display: none; }
-body.admin-mode .admin-only { display: inline-flex; }
-body.senior-mode .senior-only { display: inline-flex; }
-body.admin-mode .senior-only { display: inline-flex; }
+
 
 /* ========== ТАБЛИЦЫ НАСТРОЕК ========== */
 .users-table { width: 100%; border-collapse: collapse; font-size: .9rem; }
