@@ -1485,6 +1485,12 @@ function resetUserSettingForm() {
   });
   document.getElementById('usr-role').value = 'user';
   document.getElementById('user-form-title').textContent = '➕ Добавить пользователя';
+
+  // Сброс чекбоксов
+  document.querySelectorAll('#usr-permissions input[type="checkbox"]').forEach(cb => {
+    cb.checked = false;
+    cb.disabled = false;
+  });
 }
 
 async function editUserSetting(id) {
