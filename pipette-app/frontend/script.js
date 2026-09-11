@@ -30,10 +30,10 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
   if (data) options.body = JSON.stringify(data);
 
   const response = await fetch(`${API_URL}${endpoint}`, options);
-
-  if (response.status === 401) {
+ponse.status === 401) {
     clearSession();
-    renderAuthUI();
+    rende
+  if (resrAuthUI();
     showToast('Сессия истекла, войдите заново', 'error');
     throw new Error('Неавторизован');
   }
@@ -45,6 +45,9 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
 
 // ============================================================
 // АВТОРИЗАЦИЯ
+// ============================================================
+// ============================================================
+// СЕССИЯ (с поддержкой impersonate)
 // ============================================================
 function getSession() {
   try {
@@ -58,8 +61,13 @@ function getSession() {
   return null;
 }
 
-function setSession(user, token) {
+// setSession(user, token, originalUser, originalToken)
+function setSession(user, token, originalUser, originalToken) {
   const data = { user, token };
+  if (originalUser && originalToken) {
+    data.originalUser = originalUser;
+    data.originalToken = originalToken;
+  }
   sessionStorage.setItem('pipette_session', JSON.stringify(data));
   authToken = token;
   currentUser = user;
@@ -71,70 +79,60 @@ function clearSession() {
   currentUser = null;
 }
 
-function isAuthenticated() { return !!currentUser; }
-function isAdmin() { return currentUser && currentUser.role === 'admin'; }
-function isSeniorLab() { return currentUser && currentUser.role === 'senior_lab'; }
-
-// ============================================================
-// ПРАВА ПОЛЬЗОВАТЕЛЕЙ
-// ============================================================
-function getBasePermissions(role) {
-  if (role === 'admin') {
-    return ['manage_pipettes', 'import_data', 'export_data'];
-  } else if (role === 'senior_lab') {
-    return ['manage_pipettes', 'import_data', 'export_data'];
-  } else {
-    return [];
-  }
+function getOriginalUser() {
+  try {
+    const data = JSON.parse(sessionStorage.getItem('pipette_session'));
+    return data && data.originalUser ? data.originalUser : null;
+  } catch { return null; }
 }
 
-const PERMISSION_LABELS = {
-  'manage_pipettes': 'Управление пипетками',
-  'import_data':     'Импорт данных',
-  'export_data':     'Экспорт данных'
-};
-
-function hasPermission(permission) {
-  const user = currentUser || (typeof getCurrentUser === 'function' ? getCurrentUser() : null);
-  if (!user) return false;
-  if (user.role === 'admin') return true;
-  const base = getBasePermissions(user.role) || [];
-  const extra = user.extraPermissions || [];
-  const allPerms = [...new Set([...base, ...extra])];
-  return allPerms.includes(permission);
+function getOriginalToken() {
+  try {
+    const data = JSON.parse(sessionStorage.getItem('pipette_session'));
+    return data && data.originalToken ? data.originalToken : null;
+  } catch { return null; }
 }
 
-function canManagePipettes() { return hasPermission('manage_pipettes'); }
-function canImport()         { return hasPermission('import_data'); }
-function canExport()         { return hasPermission('export_data'); }
+function isImpersonating() {
+  return !!getOriginalUser();
+}
 
-async function loginUser(e) {
-  e.preventDefault();
-  const username = document.getElementById('login-username').value.trim();
-  const password = document.getElementById('login-password').value.trim();
-  const errorEl = document.getElementById('login-error');
-  errorEl.textContent = '';
-
-  if (!username || !password) {
-    errorEl.textContent = 'Заполните все поля';
-    return;
-  }
+// ============================================================
+// IMPERSONATE
+// ============================================================
+async function impersonateUser(userId) {
+  // Если уже в режиме impersonate — возвращаемся сначала
+  const originalUser = getOriginalUser() || currentUser;
+  const originalToken = getOriginalToken() || authToken;
 
   try {
-    const result = await apiRequest('/auth/login', 'POST', { login: username, password });
-    setSession(result.user, result.token);
-    showToast(`Добро пожаловать, ${result.user.fullName}!`, 'success');
+    const result = await apiRequest('/auth/impersonate/' + userId, 'POST', {});
+    setSession(result.user, result.token, originalUser, originalToken);
+    showToast('Вы вошли как ' + result.user.fullName, 'success');
     renderAuthUI();
     await loadPipetteData();
-  } catch (error) {
-    errorEl.textContent = error.message || 'Ошибка входа';
+  } catch (e) {
+    showToast(e.message, 'error');
   }
 }
 
-function logoutUser() {
-  clearSession();
+function stopImpersonate() {
+  const originalUser = getOriginalUser();
+  const originalToken = getOriginalToken();
+  if (!originalUser || !originalToken) {
+    showToast('Вы не в режиме переключения', 'error');
+    return;
+  }
+  // Возвращаемся к оригиналу
+  authToken = originalToken;
+  currentUser = originalUser;
+  sessionStorage.setItem('pipette_session', JSON.stringify({
+    user: originalUser,
+    token: originalToken
+  }));
+  showToast('Вернулись к своей учётной записи', 'success');
   renderAuthUI();
-  showToast('Вы вышли из системы', 'success');
+  loadPipetteData();
 }
 
 // ============================================================
