@@ -1513,20 +1513,44 @@ async function saveUserSetting() {
   const role = document.getElementById('usr-role').value;
 
   if (!login || !fullName || !position) { showToast('Заполните поля', 'error'); return; }
-  if (!id && !password) { showToast('Укажите пароль', 'error'); return; }
+  if (!id && !password) { showToast('Укажите пароль для нового пользователя', 'error'); return; }
+
+  // ▼▼▼ СОБИРАЕМ ПРАВА ИЗ ЧЕКБОКСОВ ▼▼▼
+  const extraPermissions = [];
+  if (role !== 'admin') {
+    document.querySelectorAll('#usr-permissions input[type="checkbox"]:checked').forEach(cb => {
+      extraPermissions.push(cb.value);
+    });
+  }
+  // ▲▲▲
 
   try {
+    const payload = { login, password, fullName, position, department, role, extraPermissions };
+
     if (id) {
-      await apiRequest('/users/' + id, 'PUT', { login, password, fullName, position, department, role, extraPermissions: [] });
+      await apiRequest('/users/' + id, 'PUT', payload);
       showToast('Пользователь обновлён', 'success');
     } else {
-      await apiRequest('/users', 'POST', { login, password, fullName, position, department, role, extraPermissions: [] });
+      await apiRequest('/users', 'POST', payload);
       showToast('Пользователь создан', 'success');
     }
     renderUsersSettings();
+
+    // Если редактируем себя — обновляем сессию
+    if (id === currentUser.id) {
+      const me = (await apiRequest('/users')).find(x => x.id === id);
+      if (me) {
+        currentUser.fullName = me.fullName || me.full_name;
+        currentUser.position = me.position;
+        currentUser.department = me.department;
+        currentUser.role = me.role;
+        currentUser.extraPermissions = me.extraPermissions || [];
+        setSession(currentUser, authToken);
+        renderAuthUI();
+      }
+    }
   } catch (e) { showToast(e.message, 'error'); }
 }
-
 async function deleteUserSetting(id) {
   if (!confirm('Удалить пользователя?')) return;
   try {
