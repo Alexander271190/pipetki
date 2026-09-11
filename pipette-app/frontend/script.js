@@ -219,6 +219,7 @@ async function loadPipetteData() {
   }
 }
 
+
 async function loadDepartments() {
   try {
     const depts = await apiRequest('/settings/departments');
@@ -232,6 +233,35 @@ async function loadDepartments() {
   } catch (error) {
     console.error('Error loading departments:', error);
   }
+}
+// ============================================================
+// СТАТУСЫ ПИПЕТОК
+// ============================================================
+function calcStatus(p) {
+  if (!p.active) return 'inactive';
+  if (!p.last_calibration || !p.interval) return 'danger';
+  const last = new Date(p.last_calibration);
+  const next = new Date(last);
+  next.setMonth(next.getMonth() + p.interval);
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  const daysLeft = Math.ceil((next - now) / 86400000);
+  if (daysLeft < 0) return 'danger';
+  if (daysLeft <= settings.warnDays) return 'warn';
+  return 'ok';
+}
+
+function getNextDate(p) {
+  if (!p.last_calibration || !p.interval) return null;
+  const d = new Date(p.last_calibration);
+  d.setMonth(d.getMonth() + p.interval);
+  return d;
+}
+
+function daysLeft(p) {
+  const next = getNextDate(p);
+  if (!next) return -9999;
+  const now = new Date(); now.setHours(0, 0, 0, 0);
+  return Math.ceil((next - now) / 86400000);
 }
 
 // ============================================================
