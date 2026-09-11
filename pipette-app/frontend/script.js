@@ -821,7 +821,7 @@ async function addCalibrationRecord() {
 // ЭКСПОРТ
 // ============================================================
 async function exportToExcel() {
-  if (!isAuthenticated()) { showToast('Требуется авторизация', 'error'); return; }
+    if (!canExport()) { showToast('Нет прав на экспорт', 'error'); return; }
   const data = getFilteredPipettes();
   if (data.length === 0) { showToast('Нет данных для экспорта', 'error'); return; }
 
@@ -859,7 +859,7 @@ async function exportToExcel() {
 }
 
 function exportToPDF() {
-  if (!isAuthenticated()) { showToast('Требуется авторизация', 'error'); return; }
+ if (!canExport()) { showToast('Нет прав на экспорт', 'error'); return; }
   const data = getFilteredPipettes();
   if (data.length === 0) { showToast('Нет данных для экспорта', 'error'); return; }
 
@@ -1096,15 +1096,17 @@ if (session) {
 // ИМПОРТ ДАННЫХ
 // ============================================================
 function openImportModal() {
-  if (!canManagePipettes()) { showToast('Доступ запрещён', 'error'); return; }
+  if (!canImport()) { showToast('Нет прав на импорт', 'error'); return; }
   document.getElementById('import-modal').classList.add('active');
 }
+
 function closeImportModal() {
   document.getElementById('import-modal').classList.remove('active');
   document.getElementById('import-file').value = '';
 }
 
 async function handleImport() {
+  if (!canImport()) { showToast('Нет прав на импорт', 'error'); return; } 
   const format = document.getElementById('import-format').value;
   const fileInput = document.getElementById('import-file');
   const file = fileInput.files[0];
@@ -1477,6 +1479,19 @@ async function renderUsersSettings() {
   } catch (e) {
     c.innerHTML = '<p style="color:#dc2626;">Ошибка: ' + e.message + '</p>';
   }
+}
+function onUserRoleChange(role) {
+  const checkboxes = document.querySelectorAll('#usr-permissions input[type="checkbox"]');
+  const base = getBasePermissions(role) || [];
+  checkboxes.forEach(cb => {
+    if (role === 'admin') {
+      cb.checked = true;
+      cb.disabled = true;
+    } else {
+      cb.disabled = false;
+      cb.checked = base.includes(cb.value);
+    }
+  });
 }
 
 function resetUserSettingForm() {
