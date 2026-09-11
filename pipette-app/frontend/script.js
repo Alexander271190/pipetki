@@ -1492,6 +1492,7 @@ async function editUserSetting(id) {
     const users = await apiRequest('/users');
     const u = users.find(x => x.id === id);
     if (!u) return;
+
     document.getElementById('usr-edit-id').value = u.id;
     document.getElementById('usr-login').value = u.login;
     document.getElementById('usr-password').value = '';
@@ -1499,7 +1500,25 @@ async function editUserSetting(id) {
     document.getElementById('usr-position').value = u.position;
     document.getElementById('usr-department').value = u.department || '';
     document.getElementById('usr-role').value = u.role;
-    document.getElementById('user-form-title').textContent = '✏️ ' + u.login;
+    document.getElementById('user-form-title').textContent = '✏️ Редактирование: ' + u.login;
+
+    // ▼▼▼ ЗАПОЛНЯЕМ ЧЕКБОКСЫ ПРАВ ▼▼▼
+    const base = getBasePermissions(u.role) || [];
+    const extra = u.extraPermissions || [];
+    const allPerms = [...new Set([...base, ...extra])];
+
+    document.querySelectorAll('#usr-permissions input[type="checkbox"]').forEach(cb => {
+      if (u.role === 'admin') {
+        cb.checked = true;
+        cb.disabled = true;
+      } else {
+        cb.disabled = false;
+        cb.checked = allPerms.includes(cb.value);
+      }
+    });
+    // ▲▲▲
+
+    document.getElementById('user-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (e) { showToast(e.message, 'error'); }
 }
 
