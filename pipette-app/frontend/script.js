@@ -1440,7 +1440,7 @@ async function renderUsersSettings() {
         <div class="form-row">
           <div class="form-group"><label>Отдел</label><input id="usr-department"></div>
           <div class="form-group"><label>Роль</label>
-            <select id="usr-role">
+            <select id="usr-role" onchange="onUserRoleChange(this.value)">
               <option value="user">Пользователь</option>
               <option value="senior_lab">Старший лаборант</option>
               <option value="admin">Администратор</option>
