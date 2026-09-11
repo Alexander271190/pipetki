@@ -970,25 +970,51 @@ function renderAuthUI() {
   if (isAuthenticated()) {
     authContainer.classList.add('hidden');
     mainContent.classList.add('visible');
+
     document.getElementById('user-fullname').textContent = currentUser.fullName;
-    let posText = currentUser.position + (currentUser.role === 'admin' ? ' (админ)' : currentUser.role === 'senior_lab' ? ' (ст. лаборант)' : '');
+    let posText = currentUser.position +
+      (currentUser.role === 'admin' ? ' (админ)'
+        : currentUser.role === 'senior_lab' ? ' (ст. лаборант)' : '');
     if (currentUser.department) posText += ' · ' + currentUser.department;
     document.getElementById('user-position').textContent = posText;
 
-    document.body.classList.toggle('admin-mode', isAdmin());
-    document.body.classList.toggle('senior-mode', isSeniorLab() || isAdmin());
+    // Кнопка «Вернуться» — показываем только в режиме impersonate
+    const btnStop = document.getElementById('btn-impersonate-stop');
+    if (btnStop) {
+      btnStop.style.display = isImpersonating() ? 'inline-flex' : 'none';
+    }
 
-    document.querySelectorAll('.admin-only').forEach(el => el.style.display = isAdmin() ? 'inline-flex' : 'none');
-    document.querySelectorAll('.senior-only').forEach(el => el.style.display = (isAdmin() || isSeniorLab()) ? 'inline-flex' : 'none');
+    // Проверяем права
+    const canManage = hasPermission('manage_pipettes');
+    const canImport = hasPermission('import_data');
+    const canExport = hasPermission('export_data');
+    const admin = isAdmin();
+
+    // Показ/скрытие кнопок по правам
+    document.querySelectorAll('.btn-add-pipette').forEach(el => el.style.display = canManage ? 'inline-flex' : 'none');
+    document.querySelectorAll('.btn-import').forEach(el => el.style.display = canImport ? 'inline-flex' : 'none');
+    document.querySelectorAll('.btn-export').forEach(el => el.style.display = canExport ? 'inline-flex' : 'none');
+    document.querySelectorAll('.btn-settings').forEach(el => el.style.display = admin ? 'inline-flex' : 'none');
 
     const actionsHeader = document.getElementById('actions-header');
-    if (actionsHeader) actionsHeader.style.display = (isAdmin() || isSeniorLab()) ? '' : 'none';
+    if (actionsHeader) actionsHeader.style.display = canManage ? '' : 'none';
+
+    document.body.classList.toggle('can-manage', canManage);
+    document.body.classList.toggle('can-import', canImport);
+    document.body.classList.toggle('can-export', canExport);
+    document.body.classList.toggle('is-admin', admin);
+
+    loadPipetteData();
+
   } else {
     authContainer.classList.remove('hidden');
     mainContent.classList.remove('visible');
-    document.body.classList.remove('admin-mode', 'senior-mode');
+    document.body.classList.remove('can-manage', 'can-import', 'can-export', 'is-admin');
+    const btnStop = document.getElementById('btn-impersonate-stop');
+    if (btnStop) btnStop.style.display = 'none';
   }
 }
+
 
 // ============================================================
 // ИНИЦИАЛИЗАЦИЯ
