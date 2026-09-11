@@ -99,7 +99,6 @@ function isImpersonating() {
 // ============================================================
 function getBasePermissions(role) {
   if (role === 'admin') return ['manage_pipettes', 'import_data', 'export_data'];
-  if (role === 'senior_lab') return ['manage_pipettes', 'import_data', 'export_data'];
   return [];
 }
 
@@ -1499,17 +1498,17 @@ function onUserRoleChange(role) {
   const checkboxes = document.querySelectorAll('#usr-permissions input[type="checkbox"]');
   checkboxes.forEach(cb => {
     if (role === 'admin') {
-      // Админ — все права включены и заблокированы
       cb.checked = true;
       cb.disabled = true;
+    } else if (role === 'senior_lab') {
+      cb.disabled = false;
+      cb.checked = true;
     } else {
-      // Пользователь и старший лаборант — все галочки пустые
       cb.disabled = false;
       cb.checked = false;
     }
   });
 }
-
 function resetUserSettingForm() {
   ['usr-edit-id','usr-login','usr-password','usr-fullname','usr-position','usr-department'].forEach(id => {
     document.getElementById(id).value = '';
@@ -1540,9 +1539,7 @@ async function editUserSetting(id) {
     document.getElementById('user-form-title').textContent = '✏️ Редактирование: ' + u.login;
 
     // ▼▼▼ ЗАПОЛНЯЕМ ЧЕКБОКСЫ ПРАВ ▼▼▼
-    const base = getBasePermissions(u.role) || [];
-    const extra = u.extraPermissions || [];
-    const allPerms = [...new Set([...base, ...extra])];
+        const extra = u.extraPermissions || [];
 
     document.querySelectorAll('#usr-permissions input[type="checkbox"]').forEach(cb => {
       if (u.role === 'admin') {
@@ -1550,10 +1547,9 @@ async function editUserSetting(id) {
         cb.disabled = true;
       } else {
         cb.disabled = false;
-        cb.checked = allPerms.includes(cb.value);
+        cb.checked = extra.includes(cb.value);
       }
     });
-    // ▲▲▲
 
     document.getElementById('user-form-title').scrollIntoView({ behavior: 'smooth', block: 'center' });
   } catch (e) { showToast(e.message, 'error'); }
