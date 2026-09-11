@@ -44,5 +44,60 @@ router.get('/verify', authenticate, (req, res) => {
     }
   });
 });
+// ============================================================
+// ВХОД ПОД ДРУГИМ ПОЛЬЗОВАТЕЛЕМ (impersonate) — только admin
+// ============================================================
+router.post('/impersonate/:userId', authenticate, async (req, res) => {
+  try {
+    // 1. Только администратор может входить под другими
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Только администратор может входить под другими' });
+    }
+
+    // 2. Ищем целевого пользователя
+    const [targets] = await db.query('SELECT * FROM users WHERE id = ?', [req.params.userId]);
+    if (!targets.length) {
+      return res.status(404).json({ error: 'Пользователь не найден' });
+    }
+
+    const target = targets[0];
+
+    // 3. Нельзя входить под самим собой
+    if (target.id === req.user.id) {
+      return res.status(400).json({ error: 'Вы уже вошли под этой учётной записью' });
+    }
+
+    // 4. Генерируем новый токен от имени целевого пользователя
+    const token = jwt.sign(
+      { id: target.id, login: target.login, role: target.role },
+      JWT_SECRET,
+      { expiresIn: '24h' }
+    );
+
+    // 5. Пишем в журнал действий
+    await db.query(
+      'INSERT INTO audit_log (user_id, user_full_name, action, details) VALUES (?, ?, ?, ?)',
+      [req.user.id, req.user.full_name, 'Вход под пользователем', target.full_name]
+    );
+
+    // 6. Возвращаем токен и данные целевого пользователя
+    res.json({
+      token,
+      user: {
+        id: target.id,
+        login: target.login,
+        fullName: target.full_name,
+        position: target.position,
+        department: target.department,
+        role: target.role,
+        extraPermissions: JSON.parse(target.extra_permissions || '[]')
+      }
+    });
+
+  } catch (e) {
+    console.error('Impersonate error:', e);
+    res.status(500).json({ error: 'Ошибка входа под пользователем' });
+  }
+});
 
 module.exports = router;
