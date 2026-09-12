@@ -263,22 +263,6 @@ function daysLeft(p) {
   return Math.ceil((next - now) / 86400000);
 }
 
-// ============================================================
-// СТАТУСЫ ПИПЕТОК
-// ============================================================
-function getNextDate(p) {
-  if (!p.last_calibration || !p.interval) return null;
-  const d = new Date(p.last_calibration);
-  d.setMonth(d.getMonth() + p.interval);
-  return d;
-}
-
-function daysLeft(p) {
-  const next = getNextDate(p);
-  if (!next) return -9999;
-  const now = new Date(); now.setHours(0,0,0,0);
-  return Math.ceil((next - now) / 86400000);
-}
 
 // ============================================================
 // РЕНДЕР
@@ -1578,9 +1562,7 @@ function onUserRoleChange(role) {
     if (role === 'admin') {
       cb.checked = true;
       cb.disabled = true;
-    } else if (role === 'senior_lab') {
-      cb.disabled = false;
-      cb.checked = true;
+    
     } else {
       cb.disabled = false;
       cb.checked = false;
