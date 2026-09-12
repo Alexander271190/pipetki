@@ -189,6 +189,7 @@ tbody tr:hover { background: #f8fafc; }
   background: 
     linear-gradient(135deg, rgba(26, 26, 46, 0.7), rgba(22, 33, 62, 0.7)),
    url('images/auth-bg.jpg') center/cover no-repeat fixed;
+  }
 
 /* Форма поверх — с лёгкой прозрачностью */
 .auth-box {
@@ -204,7 +205,6 @@ tbody tr:hover { background: #f8fafc; }
 }
 
 /* Шапка формы авторизации с логотипом */
-/* Шапка формы авторизации — логотип слева */
 .auth-header {
   display: flex;
   align-items: center;
@@ -247,28 +247,7 @@ tbody tr:hover { background: #f8fafc; }
   text-align: center;
   margin: top 4px;
 }
-.auth-header {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 20px;
-}
 
-.auth-logo {
-  width: 60px;
-  height: auto;
-  object-fit: scale-down;
-  flex-shrink: 0;
-}
-
-.auth-header h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  color: #1e293b;
-  text-align: left;
-  line-height: 1.25;
-}
 .auth-form { display: flex; flex-direction: column; gap: 16px; }
 .auth-form .btn { width: 100%; justify-content: center; }
 .auth-error { color: #dc2626; font-size: .85rem; text-align: center; margin-top: 8px; }
