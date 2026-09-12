@@ -8,6 +8,7 @@ services:
       - "3000:3000"
     volumes:
       - app_data:/app/data
+      - ./frontend:/app/frontend
     environment:
       JWT_SECRET: change_this_secret_key
       PORT: 3000
