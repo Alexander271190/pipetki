@@ -395,7 +395,18 @@ function sortBy(field) {
 // ============================================================
 // ФИЛЬТРЫ
 // ============================================================
-let filterState = { status: '', department: '', responsible: '', model: '', manufacturer: '', active: '' };
+let filterState = {
+  status: '',
+  department: '',
+  responsible: '',
+  model: '',
+  manufacturer: '',
+  active: '',
+  calType: 'last_calibration',
+  calPeriod: '',
+  calFrom: '',
+  calTo: ''
+};
 
 function toggleFilterPanel() {
   const panel = document.getElementById('filter-panel');
@@ -409,6 +420,12 @@ function applyFilters() {
   filterState.model = document.getElementById('filter-model').value.trim();
   filterState.manufacturer = document.getElementById('filter-manufacturer').value.trim();
   filterState.active = document.getElementById('filter-active').value;
+
+  filterState.calType = document.getElementById('filter-cal-type').value;
+  filterState.calPeriod = document.getElementById('filter-cal-period').value;
+  filterState.calFrom = document.getElementById('filter-cal-from').value;
+  filterState.calTo = document.getElementById('filter-cal-to').value;
+
   document.getElementById('filter-panel').classList.remove('show');
   render();
 }
