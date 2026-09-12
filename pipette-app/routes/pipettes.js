@@ -106,7 +106,11 @@ router.put('/:id', authenticate, requirePermission('manage_pipettes'), async (re
       values.push(k === 'active' ? (updates[k] ? 1 : 0) : updates[k]);
     }
   }
+  
   if (!fields.length) return res.status(400).json({ error: 'Нет полей для обновления' });
+  
+   fields.push('updated_at = CURRENT_TIMESTAMP');
+  
   values.push(req.params.id);
 
   const conn = await db.getConnection();
@@ -167,9 +171,9 @@ router.post('/:id/calibration', authenticate, requirePermission('manage_pipettes
       [req.params.id, date, cert, result || 'pass', org, note]
     );
     await conn.query(
-      `UPDATE pipettes SET last_calibration = ?, cert = ?, last_result = ? WHERE id = ?`,
-      [date, cert, result || 'pass', req.params.id]
-    );
+  `UPDATE pipettes SET last_calibration = ?, cert = ?, last_result = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+  [date, cert, result || 'pass', req.params.id]
+);
     await conn.query(
       'INSERT INTO audit_log (user_id, user_full_name, action, details) VALUES (?, ?, ?, ?)',
       [req.user.id, req.user.full_name, 'Добавление поверки', `${req.params.id} — ${date}`]
