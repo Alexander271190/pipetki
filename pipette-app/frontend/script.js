@@ -466,8 +466,53 @@ function getFilteredPipettes() {
     const matchActive = !filterState.active || String(p.active) === filterState.active;
     let matchUserDept = true;
     if (userDept) matchUserDept = p.department === userDept;
-    return matchSearch && matchStatus && matchDept && matchResp && matchModel && matchManuf && matchActive && matchUserDept;
+    const matchCal = matchCalPeriod(p);
+return matchSearch && matchStatus && matchDept && matchResp && matchModel && matchManuf && matchActive && matchUserDept && matchCal;
   });
+}
+
+// ============================================================
+// ФИЛЬТР ПО ДАТЕ (поверки ИЛИ внесения в систему)
+// ============================================================
+function matchCalPeriod(p) {
+  if (!filterState.calPeriod) return true;
+
+  let dateStr;
+  if (filterState.calType === 'updated_at') {
+    dateStr = p.updated_at || p.created_at;
+  } else {
+    dateStr = p.last_calibration;
+  }
+  if (!dateStr) return false;
+
+  const pureDate = String(dateStr).split(' ')[0].split('T')[0];
+  const targetDate = new Date(pureDate);
+  targetDate.setHours(0, 0, 0, 0);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diffDays = Math.round((today - targetDate) / 86400000);
+
+  switch (filterState.calPeriod) {
+    case 'today':      return diffDays === 0;
+    case 'yesterday':  return diffDays === 1;
+    case 'week':       return diffDays >= 0 && diffDays <= 7;
+    case 'month':      return diffDays >= 0 && diffDays <= 30;
+    case 'custom':
+      if (filterState.calFrom) {
+        const from = new Date(filterState.calFrom);
+        from.setHours(0, 0, 0, 0);
+        if (targetDate < from) return false;
+      }
+      if (filterState.calTo) {
+        const to = new Date(filterState.calTo);
+        to.setHours(23, 59, 59, 999);
+        if (targetDate > to) return false;
+      }
+      return true;
+    default:
+      return true;
+  }
 }
 
 // ============================================================
