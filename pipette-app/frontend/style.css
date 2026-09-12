@@ -180,41 +180,42 @@ tbody tr:hover { background: #f8fafc; }
 
 /* ========== АВТОРИЗАЦИЯ ========== */
 
+/* Фон страницы — просто нейтральный, без картинки */
 .auth-container {
   display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;
   padding: 20px;
-  background: #f0f2f5;              
+  background: #f0f2f5;              /* ← убрали градиент и auth-bg.jpg */
 }
 
-
+/* Форма — с картинкой внутри */
 .auth-box {
   position: relative;
   border-radius: 20px;
   max-width: 440px;
   width: 100%;
-  overflow: hidden;                  
+  overflow: hidden;                  /* чтобы картинка не вылезала за скругления */
   box-shadow: 0 25px 70px rgba(0, 0, 0, 0.35);
   
-  
+  /* ▼▼▼ Картинка как фон ▼▼▼ */
   background-image: url('images/auth-bg.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
 
-
+/* Затемняющий слой поверх картинки — для читаемости */
 .auth-box-overlay {
-  background: rgba(255, 255, 255, 0.88);   
-  backdrop-filter: blur(3px);              
+  background: rgba(255, 255, 255, 0.88);   /* белая дымка — 88% плотности */
+  backdrop-filter: blur(3px);              /* лёгкое размытие */
   -webkit-backdrop-filter: blur(3px);
   padding: 32px 36px 28px;
   border-radius: 20px;
 }
 
-
+/* Шапка формы — логотип + подзаголовок */
 .auth-header {
   display: flex;
   flex-direction: column;
@@ -266,7 +267,7 @@ tbody tr:hover { background: #f8fafc; }
   margin-top: 8px; 
 }
 
-
+/* Поля — усиленный контраст для читаемости на фоне */
 .auth-box .form-group input {
   background: rgba(255, 255, 255, 0.95);
   border: 1.5px solid #cbd5e1;
@@ -294,7 +295,6 @@ tbody tr:hover { background: #f8fafc; }
     font-size: 0.85rem;
   }
 }
-
 /* ========== ПОЛЬЗОВАТЕЛЬ В ШАПКЕ ========== */
 .user-info { display: flex; align-items: center; gap: 12px; color: #fff; background: rgba(255,255,255,.1); padding: 6px 14px 6px 18px; border-radius: 30px; backdrop-filter: blur(8px); }
 .user-info .name { font-weight: 600; font-size: .9rem; }
