@@ -188,8 +188,7 @@ tbody tr:hover { background: #f8fafc; }
   padding: 20px;
   background: 
     linear-gradient(135deg, rgba(26, 26, 46, 0.7), rgba(22, 33, 62, 0.7)),
-    url('auth-bg.jpg') center/cover no-repeat fixed;
-}
+   url('images/auth-bg.jpg') center/cover no-repeat fixed;
 
 /* Форма поверх — с лёгкой прозрачностью */
 .auth-box {
