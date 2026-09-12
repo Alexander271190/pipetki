@@ -1170,6 +1170,13 @@ document.getElementById('modal').addEventListener('click', e => { if (e.target.i
 document.getElementById('quick-cal-modal').addEventListener('click', e => { if (e.target.id === 'quick-cal-modal') closeQuickCalModal(); });
 document.getElementById('history-modal').addEventListener('click', e => { if (e.target.id === 'history-modal') closeHistoryModal(); });
 
+const calPeriodSelect = document.getElementById('filter-cal-period');
+if (calPeriodSelect) {
+  calPeriodSelect.addEventListener('change', function () {
+    document.getElementById('filter-cal-custom').style.display =
+      this.value === 'custom' ? 'flex' : 'none';
+  });
+}
 const session = getSession();
 if (session) {
   authToken = session.token;
