@@ -111,6 +111,39 @@
               </select>
             </div>
           </div>
+          <!-- Ряд: тип даты + период -->
+<div class="filter-row">
+  <div class="form-group">
+    <label>По какой дате</label>
+    <select id="filter-cal-type">
+      <option value="last_calibration">📄 Дата поверки (из сертификата)</option>
+      <option value="updated_at">📝 Дата внесения в систему</option>
+    </select>
+  </div>
+  <div class="form-group">
+    <label>Период</label>
+    <select id="filter-cal-period">
+      <option value="">Все</option>
+      <option value="today">📅 Сегодня</option>
+      <option value="yesterday">Вчера</option>
+      <option value="week">За 7 дней</option>
+      <option value="month">За 30 дней</option>
+      <option value="custom">Произвольный период</option>
+    </select>
+  </div>
+</div>
+
+<!-- Ряд: произвольный период (появляется при выборе) -->
+<div class="filter-row" id="filter-cal-custom" style="display:none;">
+  <div class="form-group">
+    <label>С даты</label>
+    <input type="date" id="filter-cal-from">
+  </div>
+  <div class="form-group">
+    <label>По дату</label>
+    <input type="date" id="filter-cal-to">
+  </div>
+</div>
           <div class="filter-actions">
             <button class="btn btn-secondary btn-sm" onclick="resetFilters()">Сбросить</button>
             <button class="btn btn-primary btn-sm" onclick="applyFilters()">Применить</button>
