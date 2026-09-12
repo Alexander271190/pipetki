@@ -431,13 +431,22 @@ function applyFilters() {
 }
 
 function resetFilters() {
-  filterState = { status: '', department: '', responsible: '', model: '', manufacturer: '', active: '' };
+  filterState = {
+    status: '', department: '', responsible: '', model: '',
+    manufacturer: '', active: '',
+    calType: 'last_calibration', calPeriod: '', calFrom: '', calTo: ''
+  };
   document.getElementById('filter-status').value = '';
   document.getElementById('filter-department').value = '';
   document.getElementById('filter-responsible').value = '';
   document.getElementById('filter-model').value = '';
   document.getElementById('filter-manufacturer').value = '';
   document.getElementById('filter-active').value = '';
+  document.getElementById('filter-cal-type').value = 'last_calibration';
+  document.getElementById('filter-cal-period').value = '';
+  document.getElementById('filter-cal-from').value = '';
+  document.getElementById('filter-cal-to').value = '';
+  document.getElementById('filter-cal-custom').style.display = 'none';
   document.getElementById('filter-panel').classList.remove('show');
   render();
 }
